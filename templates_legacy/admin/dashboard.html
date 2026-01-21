@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Dashboard{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <header class="dashboard-header">
+        <h1>📊 Sprint Retrospectives</h1>
+        <div class="header-actions">
+            <button onclick="openCreateModal()" class="btn-primary">+ New Sprint</button>
+            <button onclick="logout()" class="btn-secondary">Logout</button>
+        </div>
+    </header>
+
+    <div class="sprints-grid">
+        {% if sprints|length == 0 %}
+        <div class="empty-state">
+            <p>✨ No sprints yet. Create your first retrospective!</p>
+        </div>
+        {% endif %}
+
+        {% for sprint in sprints %}
+        <div class="sprint-card" data-status="{{ sprint.status }}">
+            <div class="sprint-header">
+                <h3>{{ sprint.name }}</h3>
+                <span class="status-badge status-{{ sprint.status }}">{{ sprint.status }}</span>
+            </div>
+
+            <p class="date-range">
+                📅 {{ sprint.start_date }} → {{ sprint.end_date }}
+            </p>
+
+            <div class="progress-section" hx-get="/api/sprint/{{ sprint.id }}/status" hx-trigger="every 5s"
+                hx-swap="innerHTML">
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: 0%"></div>
+                </div>
+                <p class="progress-text">Loading...</p>
+            </div>
+
+            <div class="actions">
+                {% if sprint.status == 'collecting' %}
+                <button class="btn-copy" onclick="copyLink('{{ request.url_root }}chat/{{ sprint.share_token }}')">
+                    📋 Copy Link
+                </button>
+                <button class="btn-secondary" hx-post="/api/sprint/{{ sprint.id }}/analyze"
+                    hx-confirm="Ready to generate report?" hx-target="closest .sprint-card" hx-swap="afterbegin">
+                    🧠 Analyze
+                </button>
+                {% elif sprint.status == 'analyzed' %}
+                <a href="/api/sprint/{{ sprint.id }}/report/view" class="btn-primary">
+                    📊 View Report
+                </a>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Create Sprint Modal -->
+<div id="create-modal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <h2>Create New Sprint</h2>
+        <form id="create-sprint-form">
+            <div class="form-group">
+                <label>Sprint Name</label>
+                <input type="text" name="name" placeholder="Sprint 23" required>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Start Date</label>
+                    <input type="date" name="start_date" required>
+                </div>
+                <div class="form-group">
+                    <label>End Date</label>
+                    <input type="date" name="end_date" required>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Team Members (one per line, format: Name, Role)</label>
+                <textarea name="team_members" rows="5" placeholder="Alice, Developer&#10;Bob, QA"></textarea>
+            </div>
+
+            <div class="modal-actions">
+                <button type="button" onclick="closeModal()" class="btn-secondary">Cancel</button>
+                <button type="submit" class="btn-primary">Create Sprint</button>
+            </div>
+        </form>
+
+        <div id="share-url-section" style="display: none;">
+            <h3>✅ Sprint Created!</h3>
+            <p>Share this link with your team:</p>
+            <div class="share-url-box">
+                <input type="text" id="share-url" readonly>
+                <button onclick="copyShareUrl()" class="btn-copy">Copy</button>
+            </div>
+            <button onclick="location.reload()" class="btn-primary">Done</button>
+        </div>
+    </div>
+</div>
+
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+{% endblock %}

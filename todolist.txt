@@ -1,0 +1,743 @@
+=====================================================
+  AI SPRINT RETROSPECTIVE SYSTEM - TODO LIST
+=====================================================
+
+Timeline: 8 weeks total
+Tech Stack: Python + Flask | Supabase | Gemini API | HTMX
+
+=====================================================
+PHASE 1: FOUNDATION SETUP (Week 1)
+=====================================================
+
+Environment Setup
+-----------------
+[ ] Create GitHub repository
+[ ] Initialize Git with .gitignore (Python, .env, __pycache__)
+[ ] Create Python virtual environment (python -m venv venv)
+[ ] Activate virtual environment
+[ ] Install dependencies:
+    [ ] Flask==3.0.0
+    [ ] Flask-CORS==4.0.0
+    [ ] python-dotenv==1.0.0
+    [ ] google-generativeai==0.3.2
+    [ ] supabase==2.0.0
+    [ ] gunicorn==21.2.0
+[ ] Create requirements.txt (pip freeze > requirements.txt)
+[ ] Create .env.example template
+[ ] Create .env file with actual keys
+
+Supabase Configuration
+----------------------
+[ ] Create Supabase account
+[ ] Create new Supabase project
+[ ] Copy Supabase URL and anon key to .env
+[ ] Create database migration file: migrations/001_initial_schema.sql
+[ ] Create 'sprints' table with UUID primary key
+[ ] Create 'team_members' table
+[ ] Create 'responses' table with JSONB conversation field
+[ ] Create 'analysis_reports' table with JSONB fields
+[ ] Create 'action_items' table
+[ ] Create 'sprint_comparisons' table
+[ ] Run all migrations in Supabase SQL editor
+[ ] Create database indexes:
+    [ ] idx_responses_sprint_id
+    [ ] idx_sprints_status
+    [ ] idx_team_members_sprint_id
+[ ] Set up Row Level Security (RLS) policies:
+    [ ] Admins can read all data
+    [ ] Users can only insert their own responses
+    [ ] Anonymous responses protected
+
+Gemini API Setup
+----------------
+[ ] Go to Google AI Studio (https://aistudio.google.com)
+[ ] Create new API key
+[ ] Copy API key to .env file (GEMINI_API_KEY=...)
+[ ] Test basic API connectivity with simple script
+[ ] Verify JSON mode works (response_mime_type="application/json")
+[ ] Create app/prompts/ directory
+[ ] Create placeholder prompt files
+
+Project Structure
+-----------------
+[ ] Create directory structure:
+    [ ] app/
+        [ ] __init__.py
+        [ ] routes/
+        [ ] models/
+        [ ] services/
+        [ ] utils/
+        [ ] prompts/
+    [ ] static/
+        [ ] css/
+        [ ] js/
+        [ ] images/
+    [ ] templates/
+        [ ] admin/
+        [ ] chat/
+    [ ] tests/
+    [ ] migrations/
+[ ] Create config.py for configuration management
+[ ] Create run.py as application entry point
+[ ] Create basic Flask app with "Hello World"
+[ ] Test Flask app runs locally (python run.py)
+[ ] Commit initial structure to Git
+
+=====================================================
+PHASE 2: AI CHAT INTERFACE (Week 2-3)
+=====================================================
+
+Gemini Service Layer
+--------------------
+[ ] Create app/services/gemini_service.py
+[ ] Create GeminiService class with __init__ method
+[ ] Implement conduct_interview() method
+[ ] Implement _build_context() helper (last 5 messages)
+[ ] Implement _clean_response() helper (remove markdown)
+[ ] Implement _load_prompt() helper (read from file)
+[ ] Add error handling for API failures
+[ ] Add retry logic with exponential backoff
+[ ] Test service with mock conversations
+
+Interview Prompt Template
+--------------------------
+[ ] Create app/prompts/interviewer.txt
+[ ] Write empathetic greeting message
+[ ] Define interview flow (wins → challenges → suggestions)
+[ ] Add rules for natural conversation
+[ ] Add wrap-up detection logic
+[ ] Test prompt in Google AI Studio first
+[ ] Iterate based on response quality
+
+Database Service
+----------------
+[ ] Create app/services/database_service.py
+[ ] Implement get_sprint_by_token() method
+[ ] Implement get_conversation_history() method
+[ ] Implement save_conversation_state() method
+[ ] Implement save_response() method
+[ ] Implement mark_member_submitted() method
+[ ] Add connection pooling
+[ ] Add error handling for database failures
+
+Chat Routes
+-----------
+[ ] Create app/routes/chat.py
+[ ] Create Flask Blueprint for chat routes
+[ ] Implement GET /chat/<token> route (render interface)
+[ ] Implement POST /api/chat/message route (AI response)
+[ ] Implement POST /api/response/submit route (final submission)
+[ ] Add session management for tracking conversations
+[ ] Add validation for all inputs
+[ ] Add rate limiting to prevent abuse
+[ ] Test all routes with Postman/curl
+
+Chat Interface UI
+-----------------
+[ ] Create templates/base.html with common layout
+[ ] Create templates/chat/interface.html
+[ ] Add HTMX library CDN link
+[ ] Create chat messages container
+[ ] Create message input form
+[ ] Add HTMX attributes for dynamic updates (hx-post, hx-target)
+[ ] Implement AI message display
+[ ] Implement user message display
+[ ] Add submit retrospective button
+[ ] Add anonymous mode checkbox
+[ ] Test HTMX interactions work
+
+CSS Styling
+-----------
+[ ] Create static/css/main.css
+[ ] Style chat container (max-width, centered)
+[ ] Style message bubbles (AI vs user)
+[ ] Add typing indicator animation
+[ ] Make design mobile-responsive
+[ ] Add smooth scrolling to new messages
+[ ] Style submit button and form
+[ ] Add color scheme (use CSS variables)
+[ ] Test on mobile devices
+
+JavaScript Enhancements
+-----------------------
+[ ] Create static/js/chat.js
+[ ] Auto-scroll to bottom on new message
+[ ] Clear input after send
+[ ] Disable submit during API call
+[ ] Add keyboard shortcuts (Enter to send)
+[ ] Add character counter for long messages
+[ ] Handle errors gracefully with user feedback
+
+Testing
+-------
+[ ] Test complete chat flow end-to-end
+[ ] Test anonymous mode saves correctly
+[ ] Test conversation persists across page refresh
+[ ] Test AI gives relevant follow-up questions
+[ ] Verify database saves conversation as JSONB array
+
+=====================================================
+PHASE 3: ADMIN DASHBOARD (Week 3-4)
+=====================================================
+
+Authentication
+--------------
+[ ] Create app/utils/validators.py
+[ ] Implement require_admin decorator
+[ ] Create simple password-based auth (bcrypt)
+[ ] Add /admin/login route
+[ ] Create login form template
+[ ] Add session-based authentication
+[ ] Add logout functionality
+[ ] Store admin password hash in .env
+
+Sprint Routes
+-------------
+[ ] Create app/routes/sprint.py
+[ ] Create Flask Blueprint for sprint routes
+[ ] Implement GET /admin/dashboard route
+[ ] Implement POST /api/sprint/create route
+[ ] Implement GET /api/sprint/<id> route
+[ ] Implement GET /api/sprint/<id>/status route (real-time)
+[ ] Implement PATCH /api/sprint/<id>/close route
+[ ] Implement GET /api/sprints/list route
+[ ] Generate unique share tokens (UUID)
+[ ] Add CSRF protection to forms
+
+Sprint Model
+------------
+[ ] Create app/models/sprint.py
+[ ] Define Sprint class with validation
+[ ] Add date range validation
+[ ] Add status enum (active, collecting, analyzing, closed)
+[ ] Add helper methods (is_active, can_analyze, etc.)
+
+Dashboard UI
+------------
+[ ] Create templates/admin/dashboard.html
+[ ] Add header with "New Sprint" button
+[ ] Create sprint cards grid layout
+[ ] Display sprint name, dates, status
+[ ] Add progress bar showing submission percentage
+[ ] Use HTMX for real-time updates (hx-trigger="every 5s")
+[ ] Add "Copy Link" button with clipboard API
+[ ] Add "Analyze" button (only when ready)
+[ ] Style with modern card design
+
+Sprint Creation Form
+--------------------
+[ ] Create sprint creation modal/page
+[ ] Add form fields:
+    [ ] Sprint name (text input)
+    [ ] Start date (date picker)
+    [ ] End date (date picker)
+    [ ] Team members (dynamic list)
+[ ] Add validation (end date > start date)
+[ ] Add team member input (name + role)
+[ ] Handle form submission with HTMX
+[ ] Display generated share URL
+[ ] Add copy-to-clipboard functionality
+
+Sprint Detail Page
+------------------
+[ ] Create templates/admin/sprint_detail.html
+[ ] Show sprint metadata (name, dates, status)
+[ ] List all team members with submission status
+[ ] Show green checkmark for submitted
+[ ] Show pending for not submitted
+[ ] Add ability to remove team members
+[ ] Add ability to resend link to specific member
+[ ] Add "Close Sprint" button
+
+Testing
+-------
+[ ] Test admin login/logout
+[ ] Test creating new sprint
+[ ] Test adding multiple team members
+[ ] Test share URL generation (UUID format)
+[ ] Test real-time status updates
+[ ] Verify only admin can access dashboard
+
+=====================================================
+PHASE 4: AI ANALYSIS ENGINE (Week 4-5)
+=====================================================
+
+Analysis Service Core
+---------------------
+[ ] Create app/services/analysis_service.py
+[ ] Create AnalysisService class
+[ ] Implement analyze_sprint() orchestrator method
+[ ] Implement _summarize_response() (MAP step)
+[ ] Implement _extract_themes() (REDUCE step)
+[ ] Implement _generate_recommendations() method
+[ ] Implement _analyze_sentiment() method
+[ ] Add progress tracking for long analyses
+[ ] Add error recovery (save partial results)
+
+Theme Extraction Prompt
+-----------------------
+[ ] Create app/prompts/theme_extraction.txt
+[ ] Define JSON output structure for themes
+[ ] Add instructions for identifying recurring patterns
+[ ] Add frequency calculation logic
+[ ] Add categorization rules (Critical/Moderate/Success)
+[ ] Include examples of good theme names
+[ ] Test prompt with sample data in AI Studio
+[ ] Fine-tune based on results
+
+Recommendations Prompt
+----------------------
+[ ] Create app/prompts/recommendations.txt
+[ ] Define JSON output structure for recommendations
+[ ] Add rules for actionable suggestions
+[ ] Add effort estimation guidelines
+[ ] Add priority assignment logic
+[ ] Include examples of good vs bad recommendations
+[ ] Test prompt with sample themes
+[ ] Iterate until recommendations are specific
+
+JSON Parsing Utilities
+----------------------
+[ ] Create app/utils/json_cleaner.py
+[ ] Implement clean_json_string() function
+[ ] Add regex to remove markdown code blocks
+[ ] Add handling for preamble text
+[ ] Add fallback parsing logic
+[ ] Test with various malformed JSON examples
+[ ] Add logging for parsing failures
+
+Analysis Routes
+---------------
+[ ] Create app/routes/analysis.py
+[ ] Create Flask Blueprint for analysis routes
+[ ] Implement POST /api/sprint/<id>/analyze route
+[ ] Add background job queue (or async handling)
+[ ] Add progress endpoint for long-running analysis
+[ ] Add error handling for analysis failures
+[ ] Save analysis results to database
+[ ] Update sprint status to 'analyzed'
+
+Map-Reduce Implementation
+-------------------------
+[ ] Implement individual response summarization loop
+[ ] Aggregate all summaries into single context
+[ ] Test with 1, 5, 10, 20 responses
+[ ] Measure token usage at each scale
+[ ] Optimize prompt size if needed
+[ ] Add parallel processing if API allows
+[ ] Handle timeouts gracefully
+
+Sentiment Analysis
+------------------
+[ ] Define sentiment scoring scale (-1 to 1)
+[ ] Create sentiment analysis prompt
+[ ] Score each response individually
+[ ] Aggregate scores for overall mood
+[ ] Calculate percentages (positive/neutral/negative)
+[ ] Store sentiment in database
+[ ] Add sentiment trends over time
+
+Testing
+-------
+[ ] Create test dataset with mock responses
+[ ] Test theme extraction accuracy
+[ ] Verify themes match expected patterns
+[ ] Test with 0 responses (error handling)
+[ ] Test with 100+ responses (performance)
+[ ] Measure analysis time (target: <60s for 20 responses)
+[ ] Verify JSON always parses successfully
+
+=====================================================
+PHASE 5: REPORT GENERATION (Week 5-6)
+=====================================================
+
+Report Routes
+-------------
+[ ] Add to app/routes/analysis.py
+[ ] Implement GET /admin/sprint/<id>/report route
+[ ] Implement GET /api/sprint/<id>/report/export route
+[ ] Add JSON export functionality
+[ ] Add authentication check
+[ ] Handle missing reports gracefully
+
+Report UI Structure
+-------------------
+[ ] Create templates/admin/report.html
+[ ] Add report header with sprint name and date
+[ ] Add "Export PDF" button (use window.print())
+[ ] Create sentiment overview section
+[ ] Create themes section
+[ ] Create recommendations section
+[ ] Create action plan summary
+
+Sentiment Visualization
+-----------------------
+[ ] Create sentiment chart container
+[ ] Add horizontal bar chart (CSS-based)
+[ ] Color code: green (positive), yellow (neutral), red (negative)
+[ ] Display percentages on bars
+[ ] Add overall mood indicator
+[ ] Make it print-friendly
+
+Themes Display
+--------------
+[ ] Create theme card component
+[ ] Add category icon/badge (🚨 for critical, ✅ for success)
+[ ] Display theme name and frequency
+[ ] Show impact description
+[ ] Add quotes section with blockquotes
+[ ] Style quotes to preserve anonymity
+[ ] Group themes by category
+[ ] Add expand/collapse for long themes
+
+Recommendations Display
+-----------------------
+[ ] Create recommendations section
+[ ] Group by priority (High/Medium/Low)
+[ ] Use 3-column layout (🔴 High, 🟡 Medium, 🟢 Low)
+[ ] Display action items with checkboxes
+[ ] Show effort estimates
+[ ] Show suggested owner/role
+[ ] Make checkboxes interactive (save to action_items table)
+
+Report Styling
+--------------
+[ ] Create print-specific CSS (@media print)
+[ ] Remove navigation and buttons when printing
+[ ] Optimize colors for black/white printing
+[ ] Add page breaks for sections
+[ ] Set proper margins and page size
+[ ] Test PDF generation in Chrome
+[ ] Ensure charts render correctly in PDF
+
+Export Functionality
+--------------------
+[ ] Implement JSON export route
+[ ] Add proper Content-Disposition header
+[ ] Format JSON with indentation
+[ ] Test download in browser
+[ ] Add CSV export option (optional)
+[ ] Add email report option (optional)
+
+Testing
+-------
+[ ] Generate report with test data
+[ ] Verify all sections render correctly
+[ ] Test print to PDF
+[ ] Test on mobile devices
+[ ] Test with missing data (graceful degradation)
+[ ] Verify quotes don't reveal anonymous identities
+
+=====================================================
+PHASE 6: SPRINT COMPARISON & TRENDS (Week 6-7)
+=====================================================
+
+Comparison Logic
+----------------
+[ ] Add compare_sprints() to analysis_service.py
+[ ] Implement theme matching algorithm
+[ ] Identify resolved issues (disappeared themes)
+[ ] Identify new issues (new themes)
+[ ] Identify persistent issues (recurring themes)
+[ ] Calculate trend direction (better/worse)
+[ ] Generate overall trend assessment
+[ ] Save comparison to sprint_comparisons table
+
+Comparison Routes
+-----------------
+[ ] Add POST /api/sprint/<id>/compare/<prev_id> route
+[ ] Validate both sprints exist
+[ ] Check both have analysis reports
+[ ] Call comparison service
+[ ] Return comparison data
+[ ] Handle missing previous sprint
+
+Comparison UI
+-------------
+[ ] Create comparison section in report
+[ ] Add "Compare with Previous Sprint" button
+[ ] Display comparison modal/section:
+    [ ] Improvements (✅ green)
+    [ ] Regressions (❌ red)
+    [ ] Persistent issues (🔄 yellow)
+    [ ] New issues (🆕 blue)
+[ ] Show percentage changes
+[ ] Add trend arrows (↗️ improving, ↘️ declining)
+[ ] Style for easy scanning
+
+Action Item Tracking
+--------------------
+[ ] Create action items CRUD routes
+[ ] Implement POST /api/action-items (create)
+[ ] Implement PATCH /api/action-items/<id> (update status)
+[ ] Implement GET /api/sprint/<id>/action-items (list)
+[ ] Add action item status updates from report UI
+[ ] Track completion percentage
+[ ] Show incomplete action items from previous sprint
+
+Trend Dashboard
+---------------
+[ ] Create multi-sprint trend view
+[ ] Show sentiment trend over last 5 sprints
+[ ] Chart top recurring themes
+[ ] Display action item completion rate
+[ ] Add sprint-to-sprint comparison graph
+[ ] Use simple CSS-based charts or Chart.js
+
+Testing
+-------
+[ ] Create 2 mock sprints with overlapping themes
+[ ] Test comparison logic
+[ ] Verify improvements identified correctly
+[ ] Verify regressions identified correctly
+[ ] Test with sprints having no common themes
+[ ] Test UI displays comparisons clearly
+
+=====================================================
+PHASE 7: TESTING & QA (Week 7-8)
+=====================================================
+
+Unit Tests
+----------
+[ ] Set up pytest
+[ ] Create tests/test_gemini_service.py:
+    [ ] Test conduct_interview()
+    [ ] Test _clean_response()
+    [ ] Test API error handling
+[ ] Create tests/test_analysis_service.py:
+    [ ] Test theme extraction
+    [ ] Test recommendation generation
+    [ ] Test sentiment analysis
+    [ ] Test Map-Reduce logic
+[ ] Create tests/test_database_service.py:
+    [ ] Test all CRUD operations
+    [ ] Test query performance
+[ ] Create tests/test_routes.py:
+    [ ] Test all API endpoints
+    [ ] Test authentication
+    [ ] Test validation
+[ ] Aim for >70% code coverage
+
+Integration Tests
+-----------------
+[ ] Test complete chat flow (user → AI → submit)
+[ ] Test sprint creation → collection → analysis pipeline
+[ ] Test report generation end-to-end
+[ ] Test comparison between two sprints
+[ ] Test error scenarios (API down, DB connection lost)
+
+Security Audit
+--------------
+[ ] Check for SQL injection vulnerabilities
+[ ] Test XSS protection in templates
+[ ] Verify CSRF tokens on all forms
+[ ] Test authentication bypass attempts
+[ ] Verify anonymous responses can't be traced
+[ ] Check for exposed secrets in code
+[ ] Verify .env not committed to Git
+[ ] Test rate limiting on API endpoints
+[ ] Ensure HTTPS in production config
+
+Performance Testing
+-------------------
+[ ] Test with 100+ responses (scalability)
+[ ] Measure analysis time for 10, 20, 50 responses
+[ ] Optimize slow database queries
+[ ] Add database indexes if needed
+[ ] Test concurrent users (10 simultaneous chats)
+[ ] Monitor memory usage during analysis
+[ ] Optimize API calls (caching, batching)
+[ ] Ensure page load times < 2 seconds
+
+User Acceptance Testing
+-----------------------
+[ ] Recruit 5-person test team
+[ ] Run real retrospective with test team
+[ ] Collect feedback on chat experience
+[ ] Verify AI asks relevant follow-ups
+[ ] Check report accuracy and usefulness
+[ ] Test on different devices (mobile, tablet, desktop)
+[ ] Test in different browsers (Chrome, Firefox, Safari)
+
+Bug Fixes & Polish
+------------------
+[ ] Fix all critical bugs found in testing
+[ ] Address usability issues
+[ ] Improve error messages
+[ ] Add loading states/spinners
+[ ] Add success/error toast notifications
+[ ] Polish UI animations
+[ ] Proofread all text content
+
+Documentation
+-------------
+[ ] Update README.md with setup instructions
+[ ] Document all API endpoints
+[ ] Create admin user guide
+[ ] Create team member guide
+[ ] Document environment variables
+[ ] Add code comments for complex logic
+[ ] Create architecture diagram
+
+=====================================================
+PHASE 8: DEPLOYMENT & LAUNCH (Week 8)
+=====================================================
+
+Pre-deployment Checklist
+------------------------
+[ ] All tests passing
+[ ] No security vulnerabilities
+[ ] Performance benchmarks met
+[ ] Documentation complete
+[ ] .env.example updated
+[ ] requirements.txt frozen
+[ ] Database migrations ready
+
+Render.com Setup
+----------------
+[ ] Create Render.com account
+[ ] Create new Web Service
+[ ] Connect to GitHub repository
+[ ] Create render.yaml configuration file
+[ ] Set build command: pip install -r requirements.txt
+[ ] Set start command: gunicorn -w 4 -b 0.0.0.0:$PORT run:app
+[ ] Configure environment variables in Render:
+    [ ] GEMINI_API_KEY
+    [ ] SUPABASE_URL
+    [ ] SUPABASE_KEY
+    [ ] FLASK_SECRET_KEY (generate random)
+    [ ] ADMIN_PASSWORD (set secure password)
+    [ ] PYTHON_VERSION=3.11.0
+[ ] Set instance type (Free tier for MVP)
+
+Database Migration (Production)
+-------------------------------
+[ ] Run all migrations in Supabase production database
+[ ] Verify all tables created
+[ ] Verify indexes created
+[ ] Test RLS policies work
+[ ] Create backup strategy
+[ ] Set up automated backups
+
+Production Configuration
+------------------------
+[ ] Set DEBUG=False in production
+[ ] Enable HTTPS redirect
+[ ] Configure CORS for production domain
+[ ] Set secure cookie flags
+[ ] Add security headers
+[ ] Configure logging (error tracking)
+[ ] Set up monitoring (uptime checks)
+
+Deployment
+----------
+[ ] Push code to GitHub main branch
+[ ] Trigger Render deploy
+[ ] Monitor build logs for errors
+[ ] Wait for deployment to complete
+[ ] Get production URL from Render
+
+Post-deployment Testing
+-----------------------
+[ ] Test production URL loads
+[ ] Test admin login works
+[ ] Create test sprint in production
+[ ] Test chat interface in production
+[ ] Submit test responses
+[ ] Run analysis in production
+[ ] Verify report generates
+[ ] Test all critical flows
+
+Monitoring Setup
+----------------
+[ ] Set up error logging (Sentry or similar)
+[ ] Configure uptime monitoring (UptimeRobot)
+[ ] Set up alerts for downtime
+[ ] Monitor Gemini API usage/quota
+[ ] Track database size
+[ ] Set up performance monitoring
+
+Launch Preparation
+------------------
+[ ] Create demo sprint with mock data
+[ ] Prepare demo video/screenshots
+[ ] Write launch announcement
+[ ] Prepare onboarding materials
+[ ] Set up feedback collection mechanism
+
+Launch
+------
+[ ] Share with first real team
+[ ] Collect initial feedback
+[ ] Monitor for errors
+[ ] Be ready to hotfix issues
+[ ] Iterate based on feedback
+
+Post-launch
+-----------
+[ ] Monitor usage analytics
+[ ] Collect user testimonials
+[ ] Fix reported bugs
+[ ] Plan Phase 9 features (Slack, email, etc.)
+[ ] Celebrate! 🎉
+
+=====================================================
+CONTINUOUS IMPROVEMENT
+=====================================================
+
+Weekly Maintenance
+------------------
+[ ] Check error logs
+[ ] Monitor API usage
+[ ] Review user feedback
+[ ] Fix minor bugs
+[ ] Update documentation
+
+Monthly Tasks
+-------------
+[ ] Security updates
+[ ] Dependency updates
+[ ] Performance review
+[ ] Feature prioritization
+[ ] Backup verification
+
+Quarterly Review
+----------------
+[ ] Evaluate usage metrics
+[ ] Gather user satisfaction data
+[ ] Plan major features
+[ ] Review architecture
+[ ] Consider scaling needs
+
+=====================================================
+OPTIONAL FUTURE ENHANCEMENTS (Phase 9+)
+=====================================================
+
+[ ] Slack integration (send links, post reports)
+[ ] Email notifications (reminders, reports)
+[ ] Action item Kanban board
+[ ] Multi-team/organization support
+[ ] Advanced analytics dashboard
+[ ] Word cloud visualization
+[ ] Mobile app (React Native/Flutter)
+[ ] Custom branding options
+[ ] Export to Jira/Trello
+[ ] Webhooks for integrations
+[ ] Custom question templates
+[ ] Multilingual support
+[ ] Voice input for chat
+[ ] Video retrospectives
+[ ] Anonymous voting on action items
+
+=====================================================
+END OF TODO LIST
+=====================================================
+
+Total Estimated Time: 8 weeks
+Complexity: Medium-High
+Team Size: 1-2 developers
+
+Good luck! Start with Phase 1 and work sequentially.
+Each checkbox represents a concrete, actionable task.
+
+Last Updated: January 17, 2026

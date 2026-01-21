@@ -1,0 +1,240 @@
+import google.generativeai as genai
+import json
+import re
+import os
+from typing import List, Dict
+
+class GeminiService:
+    """Service for all Gemini AI operations"""
+    
+    def __init__(self):
+        api_key = os.getenv('GEMINI_API_KEY')
+        genai.configure(api_key=api_key)
+        self.model = genai.GenerativeModel('gemini-1.5-flash')
+        self.generation_config = {
+            "response_mime_type": "application/json",
+            "temperature": 0.7,
+        }
+    
+    def conduct_interview(self, conversation_history: List[Dict], user_message: str) -> str:
+        """
+        Continue the retrospective interview conversation.
+        Returns the AI's response as a string.
+        """
+        # Load interviewer prompt template
+        system_prompt = self._load_prompt('interviewer.txt')
+        
+        # Build conversation context
+        context = self._build_context(conversation_history)
+        
+        # Generate AI response
+        full_prompt = f"""{system_prompt}
+
+{context}
+
+User: {user_message}
+
+Respond naturally and conversationally. Keep your response to 2-3 sentences maximum."""
+        
+        try:
+            response = self.model.generate_content(full_prompt)
+            return self._clean_response(response.text)
+        except Exception as e:
+            print(f"Gemini API error: {e}")
+            return "I apologize, but I'm having trouble processing your response. Could you please try again?"
+    
+    def _build_context(self, history: List[Dict]) -> str:
+        """Build conversation context from history"""
+        if not history:
+            return "This is the start of the conversation."
+        
+        context = "Conversation so far:\n"
+        # Use last 5 messages for context window management
+        for msg in history[-5:]:
+            role = "AI" if msg['role'] == 'ai' else "User"
+            content = msg['content']
+            context += f"{role}: {content}\n"
+        return context
+    
+    def _clean_response(self, text: str) -> str:
+        """Remove markdown artifacts from response"""
+        # Remove markdown code blocks if present
+        cleaned = re.sub(r'^```json\s*', '', text, flags=re.MULTILINE)
+        cleaned = re.sub(r'\s*```$', '', cleaned, flags=re.MULTILINE)
+        cleaned = re.sub(r'^```\s*', '', cleaned, flags=re.MULTILINE)
+        
+        # Sometimes Gemini adds quotes around the entire response
+        cleaned = cleaned.strip()
+        if cleaned.startswith('"') and cleaned.endswith('"'):
+            cleaned = cleaned[1:-1]
+        
+        return cleaned.strip()
+    
+    def _load_prompt(self, filename: str) -> str:
+        """Load prompt template from file"""
+        prompt_path = os.path.join(os.path.dirname(__file__), '..', 'prompts', filename)
+        try:
+            with open(prompt_path, 'r', encoding='utf-8') as f:
+                return f.read()
+        except FileNotFoundError:
+            # Fallback default prompt
+            return """You are an empathetic AI facilitator conducting a sprint retrospective interview.
+Ask thoughtful follow-up questions and keep the conversation natural.
+Cover: wins, challenges, blockers, team dynamics, and suggestions for improvement."""
+    
+    def analyze_responses(self, responses: List[Dict], analysis_type: str = 'themes') -> Dict:
+        """
+        Analyze responses using Gemini.
+        analysis_type: 'themes', 'recommendations', or 'sentiment'
+        """
+        if analysis_type == 'themes':
+            return self._extract_themes(responses)
+        elif analysis_type == 'recommendations':
+            return self._generate_recommendations(responses)
+        elif analysis_type == 'sentiment':
+            return self._analyze_sentiment(responses)
+        else:
+            raise ValueError(f"Unknown analysis type: {analysis_type}")
+    
+    def _extract_themes(self, responses: List[Dict]) -> Dict:
+        """Extract common themes from responses"""
+        prompt_template = self._load_prompt('theme_extraction.txt')
+        
+        # Format responses
+        formatted_responses = self._format_responses_for_analysis(responses)
+        
+        prompt = prompt_template.format(
+            team_size=len(responses),
+            summaries=formatted_responses
+        )
+        
+        try:
+            response = self.model.generate_content(
+                prompt,
+                generation_config=self.generation_config
+            )
+            
+            cleaned_text = self._clean_json_string(response.text)
+            return json.loads(cleaned_text)
+        except json.JSONDecodeError as e:
+            print(f"JSON parsing error: {e}")
+            print(f"Raw response: {response.text}")
+            return {"themes": []}
+        except Exception as e:
+            print(f"Theme extraction error: {e}")
+            return {"themes": []}
+    
+    def _generate_recommendations(self, themes: List[Dict]) -> Dict:
+        """Generate recommendations based on themes"""
+        prompt_template = self._load_prompt('recommendations.txt')
+        
+        themes_text = json.dumps(themes, indent=2)
+        prompt = prompt_template.format(themes=themes_text)
+        
+        try:
+            response = self.model.generate_content(
+                prompt,
+                generation_config=self.generation_config
+            )
+            
+            cleaned_text = self._clean_json_string(response.text)
+            return json.loads(cleaned_text)
+        except Exception as e:
+            print(f"Recommendations generation error: {e}")
+            return {"recommendations": []}
+    
+    def _analyze_sentiment(self, responses: List[Dict]) -> Dict:
+        """Analyze overall sentiment from responses"""
+        # Simple implementation - could be enhanced
+        positive_count = 0
+        neutral_count = 0
+        negative_count = 0
+        
+        for response in responses:
+            conversation = response.get('conversation', [])
+            # Combine all user messages
+            user_text = ' '.join([msg['content'] for msg in conversation if msg['role'] == 'user'])
+            
+            # Use Gemini to score sentiment
+            score = self._get_sentiment_score(user_text)
+            
+            if score > 0.3:
+                positive_count += 1
+            elif score < -0.3:
+                negative_count += 1
+            else:
+                neutral_count += 1
+        
+        total = len(responses)
+        if total == 0:
+            return {
+                'overall_mood': 'neutral',
+                'positive_percentage': 0,
+                'neutral_percentage': 0,
+                'negative_percentage': 0
+            }
+        
+        return {
+            'overall_mood': 'positive' if positive_count > negative_count else 'needs_improvement' if negative_count > positive_count else 'neutral',
+            'positive_percentage': round((positive_count / total) * 100, 1),
+            'neutral_percentage': round((neutral_count / total) * 100, 1),
+            'negative_percentage': round((negative_count / total) * 100, 1)
+        }
+    
+    def _get_sentiment_score(self, text: str) -> float:
+        """Get sentiment score for text (-1 to 1)"""
+        prompt = f"""Analyze the sentiment of this text and return a score between -1 (very negative) and 1 (very positive).
+Return ONLY a JSON object with a single 'score' field.
+
+Text: {text[:500]}
+
+Return format: {{"score": 0.5}}"""
+        
+        try:
+            response = self.model.generate_content(
+                prompt,
+                generation_config=self.generation_config
+            )
+            result = json.loads(self._clean_json_string(response.text))
+            return result.get('score', 0.0)
+        except:
+            return 0.0
+    
+    def _format_responses_for_analysis(self, responses: List[Dict]) -> str:
+        """Format responses for analysis prompts"""
+        formatted = ""
+        for i, resp in enumerate(responses, 1):
+            formatted += f"\n[Response {i}]\n"
+            formatted += f"User: {resp.get('user_name', 'Anonymous')}\n"
+            
+            conversation = resp.get('conversation', [])
+            user_messages = [msg['content'] for msg in conversation if msg['role'] == 'user']
+            formatted += f"Feedback: {' '.join(user_messages)}\n"
+        
+        return formatted
+    
+    def _clean_json_string(self, json_str: str) -> str:
+        """Clean JSON string by removing markdown and other artifacts"""
+        # Remove markdown code blocks
+        cleaned = re.sub(r'^```json\s*', '', json_str, flags=re.MULTILINE)
+        cleaned = re.sub(r'^```\s*', '', cleaned, flags=re.MULTILINE)
+        cleaned = re.sub(r'\s*```$', '', cleaned, flags=re.MULTILINE)
+        
+        # Remove any preamble before the JSON
+        # Look for the first { or [
+        first_brace = cleaned.find('{')
+        first_bracket = cleaned.find('[')
+        
+        if first_brace == -1 and first_bracket == -1:
+            return cleaned
+        
+        if first_brace == -1:
+            start = first_bracket
+        elif first_bracket == -1:
+            start = first_brace
+        else:
+            start = min(first_brace, first_bracket)
+        
+        cleaned = cleaned[start:]
+        
+        return cleaned.strip()

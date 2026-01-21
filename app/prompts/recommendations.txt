@@ -1,0 +1,47 @@
+Based on the identified sprint themes, generate specific, actionable recommendations.
+
+Themes:
+{themes}
+
+For each theme (prioritize Critical/High severity first):
+- Provide 2-4 concrete action items
+- Ensure actions are SPECIFIC, not vague
+- Estimate effort (realistic time estimates)
+- Predict impact (based on theme frequency and severity)
+
+Return JSON in this EXACT format:
+{{
+  "recommendations": [
+    {{
+      "theme": "string (theme name)",
+      "priority": "High|Medium|Low",
+      "action_items": [
+        {{
+          "action": "specific description of what to do",
+          "effort_estimate": "2 hours|1 day|3 days|1 week|2 weeks",
+          "impact": "high|medium|low",
+          "owner_suggestion": "role like 'Scrum Master', 'Tech Lead', 'Team'"
+        }}
+      ]
+    }}
+  ]
+}}
+
+Examples of GOOD recommendations:
+✅ "Set up Datadog monitoring for staging environment with alerts for 5xx errors and crashes"
+✅ "Create a requirements checklist template in Confluence with mandatory fields before sprint planning"
+✅ "Schedule 2 pair programming sessions per sprint (Tuesday and Thursday afternoons) and rotate pairs"
+✅ "Add acceptance criteria review step in backlog refinement meetings"
+
+Examples of BAD recommendations (too vague):
+❌ "Improve communication" 
+❌ "Fix the staging environment"
+❌ "Be better at planning"
+❌ "Work on team dynamics"
+
+Rules:
+- Be as specific as possible
+- Include tools/platforms when relevant
+- Suggest who should own the action
+- Keep effort estimates realistic
+- Focus on preventive measures, not just fixes

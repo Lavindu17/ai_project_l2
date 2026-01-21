@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block title %}{{ sprint.name }} - Chat{% endblock %}
+
+{% block content %}
+<div class="chat-container">
+    <header class="chat-header">
+        <h2>{{ sprint.name }} Retrospective</h2>
+        <p class="subtitle">Share your honest feedback - it's confidential</p>
+    </header>
+
+    <div id="chat-messages" class="messages">
+        <!-- AI greeting -->
+        <div class="message ai-message">
+            <div class="avatar">🤖</div>
+            <div class="content">
+                <p>Hi! I'm here to gather feedback about your sprint experience. This conversation is completely
+                    confidential. Let's start with the positives - what went really well this sprint?</p>
+            </div>
+        </div>
+    </div>
+
+    <form id="chat-form" class="chat-input-form">
+        <div class="input-group">
+            <textarea id="message-input" name="message" placeholder="Type your response..." required
+                rows="3"></textarea>
+            <button type="submit" class="btn-send">Send</button>
+        </div>
+    </form>
+
+    <div class="chat-footer">
+        <label class="anonymous-toggle">
+            <input type="checkbox" id="is-anonymous" name="is_anonymous">
+            Submit anonymously
+        </label>
+
+        <button id="submit-btn" onclick="submitRetrospective()" class="btn-submit">
+            Submit Retrospective
+        </button>
+    </div>
+</div>
+
+<!-- Success Modal -->
+<div id="success-modal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <h2>🎉 Thank You!</h2>
+        <p>Your feedback has been submitted successfully.</p>
+        <p>Your insights will help the team improve!</p>
+    </div>
+</div>
+
+<link rel="stylesheet" href="{{ url_for('static', filename='css/chat.css') }}">
+<script>
+    const SESSION_TOKEN = "{{ session_token }}";
+</script>
+<script src="{{ url_for('static', filename='js/chat.js') }}"></script>
+{% endblock %}

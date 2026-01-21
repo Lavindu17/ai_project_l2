@@ -1,0 +1,1552 @@
+# AI-Powered Sprint Retrospective System - Project Plan
+
+## 📋 Executive Summary
+
+This document outlines the complete development plan for an AI-powered sprint retrospective system. The system automates feedback collection through conversational AI, identifies patterns across team responses, and generates actionable insights to improve team processes.
+
+**Tech Stack:** Python + Flask | Supabase (PostgreSQL) | Google Gemini API | HTMX + Vanilla CSS/JS | Render.com
+
+**Development Timeline:** 6-8 weeks (MVP), 10-12 weeks (Full Release)
+
+---
+
+## 🎯 Project Objectives
+
+### Primary Goal
+Create a production-ready sprint retrospective system that:
+- Collects honest team feedback through AI-driven conversations
+- Identifies recurring patterns and themes automatically
+- Generates actionable recommendations for process improvement
+- Tracks progress across multiple sprints
+
+### Success Metrics
+- 90%+ team participation rate per sprint
+- AI analysis completed in <60 seconds
+- 95%+ uptime for deployed application
+- Zero data leaks (anonymous responses must remain truly anonymous)
+
+---
+
+## 🏗️ Architecture Overview
+
+### System Components
+
+```
+┌─────────────────┐
+│   User Layer    │  - Chat Interface (HTMX)
+│                 │  - Admin Dashboard (HTMX)
+└────────┬────────┘
+         │
+┌────────▼────────┐
+│  Backend Layer  │  - Flask REST API
+│                 │  - Session Management
+│                 │  - AI Orchestration
+└────────┬────────┘
+         │
+┌────────┼────────┐
+│        │        │
+▼        ▼        ▼
+┌──────┐ ┌─────┐ ┌──────┐
+│Gemini│ │Supa │ │Queue │
+│ API  │ │base │ │System│
+└──────┘ └─────┘ └──────┘
+```
+
+### Key Design Decisions
+
+1. **Separation of Concerns**: Chat collection is separate from analysis (async batch processing)
+2. **Stateful Backend**: Backend manages conversation history to prevent prompt tampering
+3. **UUID-based URLs**: All public URLs use UUIDs for security (no sequential IDs)
+4. **JSON Mode**: Use Gemini's `response_mime_type="application/json"` to prevent parsing errors
+5. **HTMX First**: Dynamic UI without heavy JavaScript frameworks
+
+---
+
+## 📊 Database Schema
+
+### Core Tables
+
+#### `sprints`
+```sql
+CREATE TABLE sprints (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(255) NOT NULL,
+    start_date DATE NOT NULL,
+    end_date DATE NOT NULL,
+    status VARCHAR(20) DEFAULT 'active', -- active, collecting, analyzing, closed
+    created_by VARCHAR(255),
+    created_at TIMESTAMP DEFAULT NOW(),
+    share_token VARCHAR(100) UNIQUE,
+    team_size INTEGER DEFAULT 0
+);
+```
+
+#### `team_members`
+```sql
+CREATE TABLE team_members (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    sprint_id UUID REFERENCES sprints(id) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL,
+    role VARCHAR(100), -- developer, qa, designer, pm, scrum_master
+    has_submitted BOOLEAN DEFAULT FALSE,
+    submitted_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+```
+
+#### `responses`
+```sql
+CREATE TABLE responses (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    sprint_id UUID REFERENCES sprints(id) ON DELETE CASCADE,
+    team_member_id UUID REFERENCES team_members(id),
+    user_name VARCHAR(255), -- Display name (can be "Anonymous")
+    is_anonymous BOOLEAN DEFAULT FALSE,
+    conversation JSONB NOT NULL, -- Array of {role, content, timestamp}
+    sentiment_score FLOAT, -- -1 to 1, calculated during analysis
+    submitted_at TIMESTAMP DEFAULT NOW(),
+    session_token VARCHAR(100) UNIQUE,
+    
+    -- Conversation structure:
+    -- [
+    --   {"role": "ai", "content": "What went well?", "timestamp": "2024-01-15T10:30:00Z"},
+    --   {"role": "user", "content": "CI/CD was fast", "timestamp": "2024-01-15T10:31:00Z"}
+    -- ]
+);
+```
+
+#### `analysis_reports`
+```sql
+CREATE TABLE analysis_reports (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    sprint_id UUID REFERENCES sprints(id) ON DELETE CASCADE,
+    themes JSONB NOT NULL, -- Array of identified themes
+    recommendations JSONB NOT NULL, -- Array of action items
+    sentiment_summary JSONB, -- Overall team morale metrics
+    generated_at TIMESTAMP DEFAULT NOW(),
+    analysis_duration_seconds INTEGER,
+    
+    -- Themes structure:
+    -- [
+    --   {
+    --     "name": "Infrastructure Stability",
+    --     "category": "Critical Issue",
+    --     "frequency": "5 out of 6",
+    --     "percentage": 83,
+    --     "impact": "Blocked testing for 2-3 days",
+    --     "quotes": ["staging down 2 days"],
+    --     "mentioned_by": ["Alice", "Anonymous"]
+    --   }
+    -- ]
+);
+```
+
+#### `action_items`
+```sql
+CREATE TABLE action_items (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    sprint_id UUID REFERENCES sprints(id) ON DELETE CASCADE,
+    report_id UUID REFERENCES analysis_reports(id),
+    description TEXT NOT NULL,
+    priority VARCHAR(20), -- high, medium, low
+    status VARCHAR(20) DEFAULT 'pending', -- pending, in_progress, done, cancelled
+    assigned_to VARCHAR(255),
+    created_at TIMESTAMP DEFAULT NOW(),
+    completed_at TIMESTAMP,
+    theme_related VARCHAR(255) -- Which theme this addresses
+);
+```
+
+#### `sprint_comparisons`
+```sql
+CREATE TABLE sprint_comparisons (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    current_sprint_id UUID REFERENCES sprints(id),
+    previous_sprint_id UUID REFERENCES sprints(id),
+    improvement_areas JSONB, -- Themes that got better
+    regression_areas JSONB, -- Themes that got worse
+    new_issues JSONB, -- Themes that appeared for first time
+    resolved_issues JSONB, -- Themes that disappeared
+    generated_at TIMESTAMP DEFAULT NOW()
+);
+```
+
+---
+
+## 🔌 API Endpoints
+
+### Sprint Management
+
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| POST | `/api/sprint/create` | Create new sprint | Yes (Admin) |
+| GET | `/api/sprint/:id` | Get sprint details | Yes (Admin) |
+| GET | `/api/sprint/:id/status` | Check collection status | Yes (Admin) |
+| PATCH | `/api/sprint/:id/close` | Close sprint (stop accepting) | Yes (Admin) |
+| GET | `/api/sprints/list` | List all sprints | Yes (Admin) |
+
+### Team Member Management
+
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| POST | `/api/sprint/:id/members` | Add team members | Yes (Admin) |
+| GET | `/api/sprint/:id/members` | List members & submission status | Yes (Admin) |
+| DELETE | `/api/sprint/:id/members/:member_id` | Remove member | Yes (Admin) |
+
+### Feedback Collection
+
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| GET | `/chat/:token` | Open chat interface | No (Token-based) |
+| POST | `/api/chat/message` | Send message to AI | No (Session) |
+| POST | `/api/response/submit` | Submit final response | No (Session) |
+| GET | `/api/chat/:session_id/history` | Get conversation history | No (Session) |
+
+### Analysis & Reporting
+
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| POST | `/api/sprint/:id/analyze` | Trigger AI analysis | Yes (Admin) |
+| GET | `/api/sprint/:id/report` | Get generated report | Yes (Admin) |
+| GET | `/api/sprint/:id/report/export` | Export as PDF/JSON | Yes (Admin) |
+| POST | `/api/sprint/:id/compare/:prev_id` | Compare with previous sprint | Yes (Admin) |
+
+### Action Items
+
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| POST | `/api/action-items` | Create action item | Yes (Admin) |
+| PATCH | `/api/action-items/:id` | Update status | Yes (Admin) |
+| GET | `/api/sprint/:id/action-items` | List all action items | Yes (Admin) |
+
+---
+
+## 🚀 Implementation Phases
+
+## **Phase 1: Foundation Setup (Week 1)**
+
+### Objectives
+- Set up development environment
+- Configure cloud services
+- Create base project structure
+
+### Tasks
+
+#### 1.1 Environment Setup
+- [ ] Create GitHub repository
+- [ ] Set up Python virtual environment
+- [ ] Install dependencies:
+  ```
+  Flask==3.0.0
+  Flask-CORS==4.0.0
+  python-dotenv==1.0.0
+  google-generativeai==0.3.2
+  supabase==2.0.0
+  gunicorn==21.2.0
+  ```
+- [ ] Configure `.env` file structure:
+  ```
+  GEMINI_API_KEY=your_key_here
+  SUPABASE_URL=your_url
+  SUPABASE_KEY=your_key
+  FLASK_SECRET_KEY=random_secret
+  ADMIN_PASSWORD=initial_password
+  ```
+
+#### 1.2 Supabase Configuration
+- [ ] Create Supabase project
+- [ ] Run database migrations (create all tables)
+- [ ] Set up Row Level Security (RLS) policies:
+  - Admins can read all data
+  - Users can only insert their own responses
+  - Anonymous users can't read others' responses
+- [ ] Create database indexes:
+  ```sql
+  CREATE INDEX idx_responses_sprint_id ON responses(sprint_id);
+  CREATE INDEX idx_sprints_status ON sprints(status);
+  CREATE INDEX idx_team_members_sprint_id ON team_members(sprint_id);
+  ```
+
+#### 1.3 Gemini API Setup
+- [ ] Obtain Gemini API key from Google AI Studio
+- [ ] Test basic API connectivity
+- [ ] Configure `response_mime_type="application/json"` in generation config
+- [ ] Create prompt templates directory structure
+
+#### 1.4 Project Structure
+```
+sprint_retro_v2/
+├── app/
+│   ├── __init__.py
+│   ├── routes/
+│   │   ├── __init__.py
+│   │   ├── sprint.py
+│   │   ├── chat.py
+│   │   ├── analysis.py
+│   │   └── admin.py
+│   ├── models/
+│   │   ├── __init__.py
+│   │   ├── sprint.py
+│   │   ├── response.py
+│   │   └── analysis.py
+│   ├── services/
+│   │   ├── __init__.py
+│   │   ├── gemini_service.py
+│   │   ├── analysis_service.py
+│   │   └── database_service.py
+│   ├── utils/
+│   │   ├── __init__.py
+│   │   ├── json_cleaner.py
+│   │   └── validators.py
+│   └── prompts/
+│       ├── interviewer.txt
+│       ├── theme_extraction.txt
+│       └── recommendations.txt
+├── static/
+│   ├── css/
+│   │   └── main.css
+│   ├── js/
+│   │   └── chat.js
+│   └── images/
+├── templates/
+│   ├── base.html
+│   ├── admin/
+│   │   ├── dashboard.html
+│   │   ├── sprint_detail.html
+│   │   └── report.html
+│   └── chat/
+│       └── interface.html
+├── tests/
+│   ├── test_gemini.py
+│   ├── test_analysis.py
+│   └── test_routes.py
+├── migrations/
+│   └── 001_initial_schema.sql
+├── .env
+├── .gitignore
+├── requirements.txt
+├── config.py
+└── run.py
+```
+
+**Deliverables:**
+- Working Flask application (Hello World)
+- Database tables created in Supabase
+- Gemini API returning JSON responses
+- Git repository with initial commit
+
+---
+
+## **Phase 2: AI Chat Interface (Week 2-3)**
+
+### Objectives
+- Build conversational AI interviewer
+- Create responsive chat UI
+- Implement session management
+
+### Tasks
+
+#### 2.1 Gemini Service Layer (`gemini_service.py`)
+
+```python
+import google.generativeai as genai
+import json
+import re
+from typing import List, Dict
+
+class GeminiService:
+    def __init__(self, api_key: str):
+        genai.configure(api_key=api_key)
+        self.model = genai.GenerativeModel('gemini-1.5-flash')
+        self.generation_config = {
+            "response_mime_type": "application/json",
+            "temperature": 0.7,
+        }
+    
+    def conduct_interview(self, conversation_history: List[Dict], user_message: str) -> str:
+        """
+        Continue the retrospective interview conversation.
+        """
+        # Load interviewer prompt template
+        system_prompt = self._load_prompt('interviewer.txt')
+        
+        # Build conversation context
+        context = self._build_context(conversation_history)
+        
+        # Generate AI response
+        full_prompt = f"{system_prompt}\n\n{context}\n\nUser: {user_message}\n\nAI:"
+        
+        response = self.model.generate_content(
+            full_prompt,
+            generation_config=self.generation_config
+        )
+        
+        return self._clean_response(response.text)
+    
+    def _build_context(self, history: List[Dict]) -> str:
+        """Build conversation context from history."""
+        context = "Conversation so far:\n"
+        for msg in history[-5:]:  # Last 5 messages for context
+            role = msg['role'].upper()
+            content = msg['content']
+            context += f"{role}: {content}\n"
+        return context
+    
+    def _clean_response(self, text: str) -> str:
+        """Remove markdown artifacts from response."""
+        cleaned = re.sub(r'^```json\s*', '', text, flags=re.MULTILINE)
+        cleaned = re.sub(r'\s*```$', '', cleaned, flags=re.MULTILINE)
+        return cleaned.strip()
+    
+    def _load_prompt(self, filename: str) -> str:
+        """Load prompt template from file."""
+        with open(f'app/prompts/{filename}', 'r') as f:
+            return f.read()
+```
+
+#### 2.2 Interview Prompt Template (`app/prompts/interviewer.txt`)
+
+```
+You are an empathetic AI facilitator conducting a sprint retrospective interview.
+
+Your role:
+- Ask thoughtful follow-up questions based on user responses
+- Dig deeper into issues to understand root causes
+- Keep conversation natural and conversational
+- Cover these key areas: wins, challenges, blockers, team dynamics, suggestions
+
+Interview Flow:
+1. Start with positives: "What went well this sprint?"
+2. Then challenges: "What obstacles did you face?"
+3. Deep dive: Ask "why" and "how" follow-ups
+4. Conclude with: "Any suggestions for improvement?"
+
+Rules:
+- Be concise (2-3 sentences max per response)
+- Show empathy when user describes frustrations
+- Don't be robotic - use natural language
+- After 8-10 exchanges, wrap up: "Thanks for sharing! Anything else?"
+- If user says "done" or "that's all", thank them and suggest they submit
+
+Current conversation history will be provided below.
+```
+
+#### 2.3 Chat Routes (`app/routes/chat.py`)
+
+```python
+from flask import Blueprint, request, jsonify, render_template, session
+from app.services.gemini_service import GeminiService
+from app.services.database_service import DatabaseService
+import uuid
+from datetime import datetime
+
+chat_bp = Blueprint('chat', __name__)
+db = DatabaseService()
+ai = GeminiService()
+
+@chat_bp.route('/chat/<token>')
+def chat_interface(token):
+    """Render chat interface for team member."""
+    # Validate token and get sprint info
+    sprint = db.get_sprint_by_token(token)
+    if not sprint or sprint['status'] != 'collecting':
+        return render_template('error.html', message="Invalid or expired link")
+    
+    # Create new session
+    session_id = str(uuid.uuid4())
+    session['session_id'] = session_id
+    session['sprint_id'] = sprint['id']
+    
+    return render_template('chat/interface.html', sprint=sprint)
+
+@chat_bp.post('/api/chat/message')
+def send_message():
+    """Process user message and return AI response."""
+    data = request.json
+    user_message = data.get('message', '').strip()
+    session_id = session.get('session_id')
+    
+    if not user_message or not session_id:
+        return jsonify({'error': 'Invalid request'}), 400
+    
+    # Get conversation history from session/database
+    history = db.get_conversation_history(session_id)
+    
+    # Add user message to history
+    history.append({
+        'role': 'user',
+        'content': user_message,
+        'timestamp': datetime.utcnow().isoformat()
+    })
+    
+    # Get AI response
+    try:
+        ai_response = ai.conduct_interview(history, user_message)
+        
+        # Add AI response to history
+        history.append({
+            'role': 'ai',
+            'content': ai_response,
+            'timestamp': datetime.utcnow().isoformat()
+        })
+        
+        # Save to database
+        db.save_conversation_state(session_id, history)
+        
+        return jsonify({
+            'response': ai_response,
+            'conversation_id': session_id
+        })
+    
+    except Exception as e:
+        return jsonify({'error': 'AI service error'}), 500
+
+@chat_bp.post('/api/response/submit')
+def submit_response():
+    """Submit completed retrospective response."""
+    data = request.json
+    session_id = session.get('session_id')
+    sprint_id = session.get('sprint_id')
+    
+    user_name = data.get('name', 'Anonymous')
+    is_anonymous = data.get('is_anonymous', False)
+    
+    # Get final conversation
+    conversation = db.get_conversation_history(session_id)
+    
+    # Save response
+    response_id = db.save_response(
+        sprint_id=sprint_id,
+        user_name=user_name,
+        is_anonymous=is_anonymous,
+        conversation=conversation,
+        session_id=session_id
+    )
+    
+    # Mark team member as submitted
+    db.mark_member_submitted(sprint_id, user_name)
+    
+    return jsonify({
+        'success': True,
+        'message': 'Thank you for your feedback!'
+    })
+```
+
+#### 2.4 Chat Interface UI (`templates/chat/interface.html`)
+
+Use HTMX for dynamic interactions without heavy JavaScript:
+
+```html
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Sprint Retrospective</title>
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+</head>
+<body>
+    <div class="chat-container">
+        <header>
+            <h2>{{ sprint.name }} Retrospective</h2>
+            <p class="subtitle">Share your honest feedback</p>
+        </header>
+        
+        <div id="chat-messages" class="messages">
+            <!-- AI greeting -->
+            <div class="message ai-message">
+                <div class="avatar">🤖</div>
+                <div class="content">
+                    <p>Hi! I'm here to gather feedback about your sprint experience. 
+                    This is completely confidential. Let's start with the positives - 
+                    what went really well this sprint?</p>
+                </div>
+            </div>
+        </div>
+        
+        <form 
+            id="chat-form"
+            hx-post="/api/chat/message" 
+            hx-target="#chat-messages" 
+            hx-swap="beforeend"
+            hx-on::after-request="this.reset()">
+            
+            <div class="input-group">
+                <textarea 
+                    name="message" 
+                    placeholder="Type your response..."
+                    required
+                    rows="3"></textarea>
+                <button type="submit">Send</button>
+            </div>
+        </form>
+        
+        <div class="actions">
+            <button 
+                hx-post="/api/response/submit"
+                hx-include="[name='anonymous-toggle']"
+                class="btn-submit">
+                Submit Retrospective
+            </button>
+            
+            <label class="anonymous-toggle">
+                <input type="checkbox" name="is_anonymous" value="true">
+                Submit anonymously
+            </label>
+        </div>
+    </div>
+    
+    <script src="{{ url_for('static', filename='js/chat.js') }}"></script>
+</body>
+</html>
+```
+
+**Deliverables:**
+- Working chat interface with AI responses
+- Conversation saved to database
+- Anonymous mode toggle
+- Responsive mobile-friendly design
+
+---
+
+## **Phase 3: Admin Dashboard (Week 3-4)**
+
+### Objectives
+- Build sprint creation interface
+- Monitor response collection
+- Display submission status
+
+### Tasks
+
+#### 3.1 Sprint Routes (`app/routes/sprint.py`)
+
+```python
+from flask import Blueprint, request, jsonify, render_template
+from app.services.database_service import DatabaseService
+from app.utils.validators import require_admin
+import uuid
+
+sprint_bp = Blueprint('sprint', __name__)
+db = DatabaseService()
+
+@sprint_bp.route('/admin/dashboard')
+@require_admin
+def dashboard():
+    """Admin dashboard showing all sprints."""
+    sprints = db.get_all_sprints()
+    return render_template('admin/dashboard.html', sprints=sprints)
+
+@sprint_bp.post('/api/sprint/create')
+@require_admin
+def create_sprint():
+    """Create new sprint and generate share token."""
+    data = request.json
+    
+    sprint_id = str(uuid.uuid4())
+    share_token = str(uuid.uuid4())[:8]  # Short token
+    
+    sprint_data = {
+        'id': sprint_id,
+        'name': data['name'],
+        'start_date': data['start_date'],
+        'end_date': data['end_date'],
+        'share_token': share_token,
+        'status': 'collecting',
+        'created_by': session.get('admin_name', 'Admin')
+    }
+    
+    db.create_sprint(sprint_data)
+    
+    # Add team members
+    for member in data.get('team_members', []):
+        db.add_team_member(sprint_id, member['name'], member.get('role'))
+    
+    share_url = f"{request.url_root}chat/{share_token}"
+    
+    return jsonify({
+        'success': True,
+        'sprint_id': sprint_id,
+        'share_url': share_url
+    })
+
+@sprint_bp.get('/api/sprint/<sprint_id>/status')
+@require_admin
+def sprint_status(sprint_id):
+    """Get real-time submission status."""
+    members = db.get_team_members(sprint_id)
+    
+    total = len(members)
+    submitted = sum(1 for m in members if m['has_submitted'])
+    
+    return jsonify({
+        'total': total,
+        'submitted': submitted,
+        'pending': total - submitted,
+        'percentage': (submitted / total * 100) if total > 0 else 0,
+        'members': members
+    })
+```
+
+#### 3.2 Dashboard UI (`templates/admin/dashboard.html`)
+
+```html
+<div class="dashboard">
+    <header>
+        <h1>Sprint Retrospectives</h1>
+        <button onclick="openCreateModal()">+ New Sprint</button>
+    </header>
+    
+    <div class="sprints-grid">
+        {% for sprint in sprints %}
+        <div class="sprint-card" data-status="{{ sprint.status }}">
+            <h3>{{ sprint.name }}</h3>
+            <p class="date-range">
+                {{ sprint.start_date }} - {{ sprint.end_date }}
+            </p>
+            
+            <div class="progress">
+                <div 
+                    class="progress-bar" 
+                    hx-get="/api/sprint/{{ sprint.id }}/status"
+                    hx-trigger="every 5s"
+                    hx-target="this"
+                    hx-swap="outerHTML">
+                    <span class="percentage">0%</span>
+                </div>
+            </div>
+            
+            <div class="actions">
+                {% if sprint.status == 'collecting' %}
+                    <button class="copy-link" data-url="{{ sprint.share_url }}">
+                        📋 Copy Link
+                    </button>
+                    <button 
+                        hx-post="/api/sprint/{{ sprint.id }}/analyze"
+                        hx-confirm="Ready to generate report?">
+                        🧠 Analyze
+                    </button>
+                {% elif sprint.status == 'analyzed' %}
+                    <a href="/admin/sprint/{{ sprint.id }}/report" class="btn-primary">
+                        📊 View Report
+                    </a>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+```
+
+**Deliverables:**
+- Sprint creation form
+- Real-time submission tracking
+- Share link generation
+- Status dashboard
+
+---
+
+## **Phase 4: AI Analysis Engine (Week 4-5)**
+
+### Objectives
+- Implement theme extraction
+- Generate actionable recommendations
+- Handle large conversation volumes
+
+### Tasks
+
+#### 4.1 Analysis Service (`app/services/analysis_service.py`)
+
+```python
+import json
+from typing import List, Dict
+from app.services.gemini_service import GeminiService
+from app.services.database_service import DatabaseService
+
+class AnalysisService:
+    def __init__(self):
+        self.ai = GeminiService()
+        self.db = DatabaseService()
+    
+    def analyze_sprint(self, sprint_id: str) -> Dict:
+        """
+        Main analysis orchestrator.
+        Uses Map-Reduce pattern for scalability.
+        """
+        start_time = time.time()
+        
+        # Step 1: Get all responses
+        responses = self.db.get_sprint_responses(sprint_id)
+        
+        if len(responses) == 0:
+            return {'error': 'No responses to analyze'}
+        
+        # Step 2: MAP - Summarize each response individually
+        summaries = []
+        for response in responses:
+            summary = self._summarize_response(response)
+            summaries.append(summary)
+        
+        # Step 3: REDUCE - Extract themes from summaries
+        themes = self._extract_themes(summaries, len(responses))
+        
+        # Step 4: Generate recommendations
+        recommendations = self._generate_recommendations(themes)
+        
+        # Step 5: Calculate sentiment
+        sentiment = self._analyze_sentiment(responses)
+        
+        # Step 6: Save report
+        report = {
+            'sprint_id': sprint_id,
+            'themes': themes,
+            'recommendations': recommendations,
+            'sentiment_summary': sentiment,
+            'analysis_duration_seconds': int(time.time() - start_time)
+        }
+        
+        self.db.save_analysis_report(sprint_id, report)
+        
+        return report
+    
+    def _summarize_response(self, response: Dict) -> Dict:
+        """Summarize individual conversation (MAP step)."""
+        conversation = response['conversation']
+        
+        # Extract only user messages
+        user_messages = [
+            msg['content'] for msg in conversation 
+            if msg['role'] == 'user'
+        ]
+        
+        combined_text = '\n'.join(user_messages)
+        
+        prompt = f"""
+Summarize this team member's sprint feedback into key points:
+
+{combined_text}
+
+Return JSON:
+{{
+  "user": "{response['user_name']}",
+  "wins": ["list of wins"],
+  "challenges": ["list of challenges"],
+  "suggestions": ["list of suggestions"],
+  "sentiment": "positive/neutral/negative"
+}}
+"""
+        
+        result = self.ai.model.generate_content(
+            prompt,
+            generation_config={"response_mime_type": "application/json"}
+        )
+        
+        return json.loads(result.text)
+    
+    def _extract_themes(self, summaries: List[Dict], team_size: int) -> List[Dict]:
+        """Extract common themes across all summaries (REDUCE step)."""
+        
+        summaries_text = json.dumps(summaries, indent=2)
+        
+        prompt = self._load_prompt('theme_extraction.txt')
+        full_prompt = prompt.format(
+            team_size=team_size,
+            summaries=summaries_text
+        )
+        
+        result = self.ai.model.generate_content(
+            full_prompt,
+            generation_config={"response_mime_type": "application/json"}
+        )
+        
+        themes_data = json.loads(result.text)
+        return themes_data['themes']
+    
+    def _generate_recommendations(self, themes: List[Dict]) -> List[Dict]:
+        """Generate actionable recommendations."""
+        
+        themes_text = json.dumps(themes, indent=2)
+        
+        prompt = self._load_prompt('recommendations.txt')
+        full_prompt = prompt.format(themes=themes_text)
+        
+        result = self.ai.model.generate_content(
+            full_prompt,
+            generation_config={"response_mime_type": "application/json"}
+        )
+        
+        recs_data = json.loads(result.text)
+        return recs_data['recommendations']
+    
+    def _analyze_sentiment(self, responses: List[Dict]) -> Dict:
+        """Calculate overall team sentiment."""
+        # Simple implementation - count positive/negative keywords
+        # Or use Gemini for sentiment scoring
+        
+        positive_count = 0
+        neutral_count = 0
+        negative_count = 0
+        
+        for response in responses:
+            # Use Gemini to score each response
+            score = self._get_sentiment_score(response['conversation'])
+            if score > 0.3:
+                positive_count += 1
+            elif score < -0.3:
+                negative_count += 1
+            else:
+                neutral_count += 1
+        
+        total = len(responses)
+        return {
+            'overall_mood': 'positive' if positive_count > negative_count else 'needs_improvement',
+            'positive_percentage': (positive_count / total) * 100,
+            'neutral_percentage': (neutral_count / total) * 100,
+            'negative_percentage': (negative_count / total) * 100
+        }
+```
+
+#### 4.2 Theme Extraction Prompt (`app/prompts/theme_extraction.txt`)
+
+```
+You are analyzing summarized sprint retrospective feedback from {team_size} team members.
+
+Your task:
+1. Identify RECURRING themes (mentioned by 2+ people)
+2. Group similar issues even if worded differently
+3. Categorize each theme: Critical Issue / Moderate Issue / Success / Suggestion
+4. Provide evidence from quotes
+
+Team Summaries:
+{summaries}
+
+Return JSON in this EXACT format:
+{{
+  "themes": [
+    {{
+      "name": "string",
+      "category": "Critical Issue|Moderate Issue|Success|Suggestion",
+      "frequency": "X out of Y",
+      "percentage": number,
+      "impact": "string describing impact on team",
+      "quotes": ["string"],
+      "mentioned_by": ["string"],
+      "severity": "high|medium|low"
+    }}
+  ]
+}}
+
+Rules:
+- Only include themes mentioned by 2+ people (unless severity is high)
+- Be specific with theme names (not generic like "Communication")
+- Impact should describe actual consequences
+- Sort by severity (high to low)
+```
+
+#### 4.3 Recommendations Prompt (`app/prompts/recommendations.txt`)
+
+```
+Based on the identified sprint themes, generate specific, actionable recommendations.
+
+Themes:
+{themes}
+
+For each theme (prioritize Critical/High severity first):
+- Provide 2-4 concrete action items
+- Ensure actions are SPECIFIC, not vague
+- Estimate effort (hours/days)
+- Predict impact (high/medium/low)
+
+Return JSON:
+{{
+  "recommendations": [
+    {{
+      "theme": "string",
+      "priority": "High|Medium|Low",
+      "action_items": [
+        {{
+          "action": "specific description",
+          "effort_estimate": "2 hours|1 day|1 week",
+          "impact": "high|medium|low",
+          "owner_suggestion": "role like 'Scrum Master' or 'Tech Lead'"
+        }}
+      ]
+    }}
+  ]
+}}
+
+Examples of GOOD recommendations:
+✅ "Set up Datadog monitoring for staging environment with alerts for 5xx errors"
+✅ "Create a requirements checklist template in Confluence"
+✅ "Schedule 2 pair programming sessions per sprint (Tuesday and Thursday afternoons)"
+
+Examples of BAD recommendations:
+❌ "Improve communication" (too vague)
+❌ "Fix the staging environment" (not actionable)
+❌ "Be better at planning" (not specific)
+```
+
+**Deliverables:**
+- Working analysis engine
+- Theme extraction with 90%+ accuracy
+- Actionable recommendations
+- Analysis completes in <60 seconds for 10 responses
+
+---
+
+## **Phase 5: Report Generation & Visualization (Week 5-6)**
+
+### Objectives
+- Create beautiful, readable reports
+- Visualize themes and trends
+- Enable PDF export
+
+### Tasks
+
+#### 5.1 Report Routes (`app/routes/analysis.py`)
+
+```python
+@analysis_bp.get('/admin/sprint/<sprint_id>/report')
+@require_admin
+def view_report(sprint_id):
+    """Display analysis report."""
+    report = db.get_analysis_report(sprint_id)
+    sprint = db.get_sprint(sprint_id)
+    
+    if not report:
+        return render_template('error.html', 
+            message="Report not generated yet")
+    
+    return render_template('admin/report.html', 
+        report=report, 
+        sprint=sprint)
+
+@analysis_bp.get('/admin/sprint/<sprint_id>/report/export')
+@require_admin
+def export_report(sprint_id):
+    """Export report as JSON."""
+    report = db.get_analysis_report(sprint_id)
+    
+    return jsonify(report), 200, {
+        'Content-Disposition': f'attachment; filename=sprint_{sprint_id}_report.json'
+    }
+```
+
+#### 5.2 Report UI (`templates/admin/report.html`)
+
+```html
+<div class="report-container">
+    <header class="report-header">
+        <h1>{{ sprint.name }} - Retrospective Report</h1>
+        <p class="meta">Generated on {{ report.generated_at | format_date }}</p>
+        <button onclick="window.print()">📄 Export PDF</button>
+    </header>
+    
+    <!-- Sentiment Overview -->
+    <section class="sentiment-overview">
+        <h2>Team Sentiment</h2>
+        <div class="sentiment-chart">
+            <div class="bar positive" style="width: {{ report.sentiment_summary.positive_percentage }}%">
+                {{ report.sentiment_summary.positive_percentage | round }}% Positive
+            </div>
+            <div class="bar neutral" style="width: {{ report.sentiment_summary.neutral_percentage }}%">
+                {{ report.sentiment_summary.neutral_percentage | round }}% Neutral
+            </div>
+            <div class="bar negative" style="width: {{ report.sentiment_summary.negative_percentage }}%">
+                {{ report.sentiment_summary.negative_percentage | round }}% Concerned
+            </div>
+        </div>
+    </section>
+    
+    <!-- Themes -->
+    <section class="themes-section">
+        <h2>Identified Themes</h2>
+        
+        {% for theme in report.themes %}
+        <div class="theme-card" data-category="{{ theme.category }}">
+            <div class="theme-header">
+                <h3>
+                    {% if theme.category == 'Critical Issue' %}🚨{% endif %}
+                    {% if theme.category == 'Success' %}✅{% endif %}
+                    {{ theme.name }}
+                </h3>
+                <span class="frequency-badge">{{ theme.frequency }}</span>
+            </div>
+            
+            <p class="impact">{{ theme.impact }}</p>
+            
+            <div class="quotes">
+                {% for quote in theme.quotes[:3] %}
+                <blockquote>"{{ quote }}"</blockquote>
+                {% endfor %}
+            </div>
+            
+            {% if theme.category != 'Success' %}
+            <div class="related-actions">
+                <h4>Recommended Actions:</h4>
+                {% for rec in report.recommendations %}
+                    {% if rec.theme == theme.name %}
+                        {% for action in rec.action_items %}
+                        <div class="action-item">
+                            <input type="checkbox" id="action-{{ loop.index }}">
+                            <label for="action-{{ loop.index }}">
+                                {{ action.action }}
+                                <span class="effort">{{ action.effort_estimate }}</span>
+                            </label>
+                        </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </section>
+    
+    <!-- Recommendations Summary -->
+    <section class="recommendations-summary">
+        <h2>Action Plan</h2>
+        <div class="priority-columns">
+            <div class="priority-column high">
+                <h3>🔴 High Priority</h3>
+                <!-- High priority actions -->
+            </div>
+            <div class="priority-column medium">
+                <h3>🟡 Medium Priority</h3>
+                <!-- Medium priority actions -->
+            </div>
+            <div class="priority-column low">
+                <h3>🟢 Low Priority</h3>
+                <!-- Low priority actions -->
+            </div>
+        </div>
+    </section>
+</div>
+```
+
+**Deliverables:**
+- Beautiful, print-friendly report
+- Theme visualization
+- Actionable recommendations display
+- PDF export functionality
+
+---
+
+## **Phase 6: Sprint Comparison & Trends (Week 6-7)**
+
+### Objectives
+- Compare current sprint with previous
+- Identify improvement/regression trends
+- Track action item completion
+
+### Tasks
+
+#### 6.1 Comparison Analysis
+
+```python
+def compare_sprints(current_sprint_id: str, previous_sprint_id: str) -> Dict:
+    """Compare two sprint reports to identify trends."""
+    
+    current_report = db.get_analysis_report(current_sprint_id)
+    previous_report = db.get_analysis_report(previous_sprint_id)
+    
+    current_themes = {t['name']: t for t in current_report['themes']}
+    previous_themes = {t['name']: t for t in previous_report['themes']}
+    
+    # Find improvements (issues that disappeared)
+    resolved_issues = []
+    for prev_name, prev_theme in previous_themes.items():
+        if prev_name not in current_themes and prev_theme['category'] != 'Success':
+            resolved_issues.append({
+                'name': prev_name,
+                'was_mentioned_by': prev_theme['percentage']
+            })
+    
+    # Find regressions (new issues)
+    new_issues = []
+    for curr_name, curr_theme in current_themes.items():
+        if curr_name not in previous_themes and curr_theme['category'] != 'Success':
+            new_issues.append(curr_theme)
+    
+    # Find persistent issues
+    persistent_issues = []
+    for name in set(current_themes.keys()) & set(previous_themes.keys()):
+        curr = current_themes[name]
+        prev = previous_themes[name]
+        
+        if curr['category'] != 'Success':
+            trend = 'worse' if curr['percentage'] > prev['percentage'] else 'better'
+            persistent_issues.append({
+                'name': name,
+                'trend': trend,
+                'previous_percentage': prev['percentage'],
+                'current_percentage': curr['percentage']
+            })
+    
+    comparison = {
+        'current_sprint_id': current_sprint_id,
+        'previous_sprint_id': previous_sprint_id,
+        'improvement_areas': resolved_issues,
+        'regression_areas': new_issues,
+        'persistent_issues': persistent_issues,
+        'overall_trend': 'improving' if len(resolved_issues) > len(new_issues) else 'needs_attention'
+    }
+    
+    db.save_sprint_comparison(comparison)
+    return comparison
+```
+
+**Deliverables:**
+- Sprint-to-sprint comparison
+- Trend visualization
+- Progress tracking
+
+---
+
+## **Phase 7: Testing & Quality Assurance (Week 7-8)**
+
+### Objectives
+- Comprehensive testing
+- Security audit
+- Performance optimization
+
+### Tasks
+
+#### 7.1 Unit Tests
+
+```python
+# tests/test_analysis.py
+import pytest
+from app.services.analysis_service import AnalysisService
+
+def test_theme_extraction():
+    """Test that AI correctly identifies recurring themes."""
+    mock_responses = [
+        {"user_name": "Alice", "wins": [], "challenges": ["Staging crashed"]},
+        {"user_name": "Bob", "wins": [], "challenges": ["Staging issues"]},
+        {"user_name": "Carol", "wins": ["Fast CI"], "challenges": []},
+    ]
+    
+    service = AnalysisService()
+    themes = service._extract_themes(mock_responses, 3)
+    
+    # Should identify "Staging" as a theme (2/3 mentioned)
+    staging_themes = [t for t in themes if 'staging' in t['name'].lower()]
+    assert len(staging_themes) >= 1
+    assert staging_themes[0]['frequency'] == "2 out of 3"
+
+def test_empty_responses():
+    """Test handling of sprint with no responses."""
+    service = AnalysisService()
+    result = service.analyze_sprint('fake_id')
+    
+    assert 'error' in result
+```
+
+#### 7.2 Security Checklist
+- [ ] SQL injection prevention (use parameterized queries)
+- [ ] XSS protection in templates
+- [ ] CSRF tokens for forms
+- [ ] Rate limiting on API endpoints
+- [ ] Validate all user inputs
+- [ ] Anonymous responses truly can't be traced
+- [ ] Admin authentication with bcrypt passwords
+- [ ] HTTPS enforced in production
+- [ ] Environment variables not committed to Git
+
+#### 7.3 Performance Testing
+- [ ] Test with 100+ responses
+- [ ] Measure analysis time (target: <60s for 20 responses)
+- [ ] Database query optimization
+- [ ] Add caching for frequently accessed data
+- [ ] Implement database connection pooling
+
+---
+
+## **Phase 8: Deployment & Launch (Week 8)**
+
+### Objectives
+- Deploy to Render.com
+- Configure production environment
+- Documentation
+
+### Tasks
+
+#### 8.1 Render.com Setup
+
+1. Create `render.yaml`:
+```yaml
+services:
+  - type: web
+    name: sprint-retro-ai
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn -w 4 -b 0.0.0.0:$PORT run:app
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_KEY
+        sync: false
+      - key: FLASK_SECRET_KEY
+        generateValue: true
+      - key: ADMIN_PASSWORD
+        generateValue: true
+```
+
+2. Deploy steps:
+- [ ] Push to GitHub
+- [ ] Connect Render to repository
+- [ ] Set environment variables in Render dashboard
+- [ ] Deploy
+- [ ] Test production URL
+- [ ] Set up custom domain (optional)
+
+#### 8.2 Documentation
+
+Create `README.md`:
+```markdown
+# Sprint Retrospective AI System
+
+## Setup
+1. Clone repository
+2. Create .env file (see .env.example)
+3. pip install -r requirements.txt
+4. python run.py
+
+## Admin Access
+URL: /admin/login
+Default password: (set in .env)
+
+## Usage
+1. Create sprint
+2. Share link with team
+3. Wait for responses
+4. Click "Analyze"
+5. View report
+```
+
+**Deliverables:**
+- Production deployment
+- Documentation
+- Admin user guide
+
+---
+
+## 🧪 Testing Strategy
+
+### Unit Tests
+- Gemini service response parsing
+- Theme extraction logic
+- Database operations
+- Validation functions
+
+### Integration Tests
+- End-to-end chat flow
+- Analysis pipeline
+- Report generation
+
+### User Acceptance Testing
+- Run real retrospective with 5-person team
+- Verify AI asks relevant follow-ups
+- Check report accuracy
+- Validate anonymous mode
+
+---
+
+## 🔐 Security Measures
+
+### Data Protection
+1. **Anonymous Responses:** Separate table with no direct link to user identity
+2. **Token Security:** UUID-based URLs, expire after sprint closes
+3. **Admin Auth:** Bcrypt hashed passwords, session management
+4. **RLS Policies:** Supabase Row Level Security prevents data leaks
+
+### Code Security
+- Input sanitization on all user data
+- Parameterized SQL queries
+- CSRF protection on forms
+- Rate limiting on endpoints
+- HTTPS in production
+
+---
+
+## 📊 Success Metrics
+
+### Technical Metrics
+- Analysis completion time: < 60 seconds
+- System uptime: > 99%
+- Zero security incidents
+- Database query time: < 500ms
+
+### Business Metrics
+- Team participation rate: > 90%
+- Admin satisfaction: Report is actionable
+- Feature adoption: 80% of teams use comparison feature
+
+---
+
+## 🚀 Future Enhancements (Post-MVP)
+
+### Phase 9: Advanced Features (Optional)
+1. **Slack Integration**
+   - Send retrospective link via Slack
+   - Post report summary to channel
+
+2. **Email Notifications**
+   - Remind team members who haven't submitted
+   - Email report to stakeholders
+
+3. **Action Item Tracking**
+   - Kanban board for action items
+   - Track completion across sprints
+
+4. **Multi-team Support**
+   - Organization accounts
+   - Compare teams
+   - Aggregate insights
+
+5. **Advanced Analytics**
+   - Sentiment trend charts
+   - Word clouds
+   - Category breakdown pie charts
+
+6. **Mobile App**
+   - React Native or Flutter
+   - Push notifications
+
+---
+
+## 📝 Key Technical Decisions
+
+| Decision | Rationale |
+|----------|-----------|
+| Flask over FastAPI | Simpler for MVP, excellent template support |
+| Supabase over self-hosted | Managed service, built-in auth, free tier |
+| HTMX over React | Avoids build step, works with Flask templates |
+| Gemini over GPT-4 | Free tier, JSON mode, sufficient for task |
+| UUID over integer IDs | Security (no enumeration attacks) |
+| Map-Reduce for analysis | Scalable to large teams |
+
+---
+
+## ⚠️ Risk Mitigation
+
+### Risk: Gemini API Rate Limits
+**Solution:** Implement exponential backoff, cache analysis results
+
+### Risk: Large conversation context
+**Solution:** Use Map-Reduce pattern (summarize individually, then aggregate)
+
+### Risk: JSON parsing errors
+**Solution:** Use `response_mime_type="application/json"` + fallback cleaning
+
+### Risk: Anonymous responses traced
+**Solution:** Store in separate table, no identifying info in conversation JSON
+
+### Risk: Deployment costs
+**Solution:** Start with Render free tier, optimize before scaling
+
+---
+
+## 📚 Resources & Documentation
+
+### External Docs
+- [Gemini API Docs](https://ai.google.dev/docs)
+- [Supabase Python Client](https://supabase.com/docs/reference/python)
+- [HTMX Documentation](https://htmx.org/docs/)
+- [Flask Mega-Tutorial](https://blog.miguelgrinberg.com/post/the-flask-mega-tutorial-part-i-hello-world)
+
+### Internal Docs
+- `app/prompts/` - AI prompt templates
+- `migrations/` - Database schema changes
+- `tests/` - Test suite
+- `README.md` - Setup instructions
+
+---
+
+## ✅ Definition of Done
+
+### MVP Launch Criteria
+- [ ] Admin can create sprint and get share link
+- [ ] Team members can chat with AI and submit
+- [ ] Analysis generates accurate themes (validated with test sprint)
+- [ ] Report is human-readable and actionable
+- [ ] Deployed to production URL
+- [ ] Zero critical security vulnerabilities
+- [ ] Documentation complete
+- [ ] Test coverage > 70%
+
+---
+
+## 🎯 Timeline Summary
+
+| Phase | Duration | Key Deliverable |
+|-------|----------|-----------------|
+| 1. Foundation | Week 1 | Working Flask + DB setup |
+| 2. Chat Interface | Week 2-3 | AI interviewer functional |
+| 3. Admin Dashboard | Week 3-4 | Sprint management UI |
+| 4. Analysis Engine | Week 4-5 | Theme extraction working |
+| 5. Report Generation | Week 5-6 | Beautiful reports |
+| 6. Comparisons | Week 6-7 | Trend tracking |
+| 7. Testing | Week 7-8 | QA complete |
+| 8. Deployment | Week 8 | Live production system |
+
+**Total: 8 weeks to production-ready MVP**
+
+---
+
+## 💡 Implementation Tips
+
+### Start Small
+- Build Phase 1-2 first, test with friends
+- Get feedback early
+- Iterate on prompts based on real conversations
+
+### Prompt Engineering
+- The quality of your prompts determines report quality
+- Test prompts in Google AI Studio first
+- Include examples in prompts for better results
+
+### Database Design
+- Use UUIDs from day 1 (hard to migrate later)
+- Add indexes early
+- Test RLS policies thoroughly
+
+### Frontend
+- HTMX makes it feel like React without the complexity
+- Keep CSS simple and mobile-friendly
+- Use print stylesheets for PDF export
+
+---
+
+## 🤝 Support & Maintenance
+
+### Monitoring
+- Set up error logging (Sentry or similar)
+- Track Gemini API usage
+- Monitor database size
+- Alert on high response times
+
+### Maintenance
+- Weekly Gemini API updates check
+- Monthly security updates
+- Quarterly feature reviews
+
+---
+
+## 📞 Next Steps
+
+1. **Review this plan** - Make any adjustments
+2. **Set up development environment** (Phase 1)
+3. **Create GitHub repo** and push initial structure
+4. **Get Gemini API key** from Google AI Studio
+5. **Create Supabase project** and run migrations
+6. **Start with chat interface** (most critical feature)
+
+---
+
+**Good luck with your sprint retrospective system! 🚀**
+
+*This plan incorporates all feedback from the improvements.txt document, including JSON mode, Map-Reduce scaling, HTMX, UUID security, and robust error handling.*

@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Login{% endblock %}
+
+{% block content %}
+<div class="login-container">
+    <div class="login-card">
+        <h1>🔒 Admin Login</h1>
+        <p class="subtitle">Sprint Retrospective System</p>
+
+        <form id="login-form">
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" required autofocus>
+            </div>
+
+            <button type="submit" class="btn-primary">Login</button>
+
+            <div id="error-message" class="error-message" style="display: none;"></div>
+        </form>
+    </div>
+</div>
+
+<style>
+    .login-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+
+    .login-card {
+        background: white;
+        padding: 3rem;
+        border-radius: 16px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        width: 100%;
+        max-width: 400px;
+    }
+
+    .login-card h1 {
+        text-align: center;
+        margin-bottom: 0.5rem;
+    }
+
+    .subtitle {
+        text-align: center;
+        color: #666;
+        margin-bottom: 2rem;
+    }
+
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+
+    .form-group label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-weight: 600;
+        color: #333;
+    }
+
+    .form-group input {
+        width: 100%;
+        padding: 0.75rem;
+        border: 2px solid #e5e7eb;
+        border-radius: 8px;
+        font-size: 1rem;
+    }
+
+    .form-group input:focus {
+        outline: none;
+        border-color: #667eea;
+    }
+
+    .btn-primary {
+        width: 100%;
+        padding: 0.875rem;
+        background: #667eea;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.3s;
+    }
+
+    .btn-primary:hover {
+        background: #5568d3;
+    }
+
+    .error-message {
+        margin-top: 1rem;
+        padding: 0.75rem;
+        background: #fee2e2;
+        color: #dc2626;
+        border-radius: 8px;
+        text-align: center;
+    }
+</style>
+
+<script>
+    document.getElementById('login-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const password = document.getElementById('password').value;
+        const errorDiv = document.getElementById('error-message');
+
+        try {
+            const response = await fetch('/admin/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ password })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                window.location.href = data.redirect;
+            } else {
+                errorDiv.textContent = data.error || 'Invalid password';
+                errorDiv.style.display = 'block';
+            }
+        } catch (error) {
+            errorDiv.textContent = 'Login failed. Please try again.';
+            errorDiv.style.display = 'block';
+        }
+    });
+</script>
+{% endblock %}

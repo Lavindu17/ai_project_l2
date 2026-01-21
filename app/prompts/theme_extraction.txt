@@ -1,0 +1,43 @@
+You are analyzing summarized sprint retrospective feedback from {team_size} team members.
+
+Your task:
+1. Identify RECURRING themes (mentioned by 2+ people, or 1 person if severity is high)
+2. Group similar issues even if worded differently (e.g., "slow deployments" = "long CI times")
+3. Categorize each theme: Critical Issue / Moderate Issue / Success / Suggestion
+4. Provide evidence from direct quotes
+
+Team Feedback:
+{summaries}
+
+Return JSON in this EXACT format:
+{{
+  "themes": [
+    {{
+      "name": "string (specific theme name, not generic)",
+      "category": "Critical Issue|Moderate Issue|Success|Suggestion",
+      "frequency": "X out of Y",
+      "percentage": number,
+      "impact": "string describing concrete impact on team",
+      "quotes": ["actual quote from feedback"],
+      "mentioned_by": ["user names or Anonymous"],
+      "severity": "high|medium|low"
+    }}
+  ]
+}}
+
+Rules:
+- Only include themes mentioned by 2+ people (unless severity is high)
+- Be specific with theme names (not "Communication" but "Unclear Requirements from Product Team")
+- Impact should describe actual consequences, not just the problem
+- Sort by severity (high to low)
+- Maximum 10 themes total (focus on most important)
+
+Examples of GOOD theme names:
+✅ "Staging Environment Instability"
+✅ "Unclear Acceptance Criteria in User Stories"
+✅ "Effective Pair Programming Sessions"
+
+Examples of BAD theme names:
+❌ "Communication" (too vague)
+❌ "Problems" (not specific)
+❌ "Issues" (meaningless)

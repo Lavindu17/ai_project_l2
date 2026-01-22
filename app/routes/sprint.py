@@ -252,6 +252,47 @@ def generate_invite_codes(sprint_id):
         'members': updated_members
     })
 
+@sprint_bp.route('/<sprint_id>/details', methods=['GET'])
+@require_admin
+def get_sprint_details(sprint_id):
+    """Get complete sprint details with team members for detail page"""
+    sprint = db.get_sprint_with_context(sprint_id)
+    if not sprint:
+        return jsonify({'error': 'Sprint not found'}), 404
+    
+    # Get team members with submission status
+    members = db.get_team_members(sprint_id)
+    
+    # Get project info if associated
+    project = None
+    if sprint.get('project_id'):
+        project = db.get_project(sprint['project_id'])
+    
+    # Calculate submission stats
+    total = len(members)
+    submitted = sum(1 for m in members if m.get('has_submitted', False))
+    
+    return jsonify({
+        'sprint': {
+            'id': sprint['id'],
+            'name': sprint.get('name'),
+            'start_date': sprint.get('start_date'),
+            'end_date': sprint.get('end_date'),
+            'status': sprint.get('status'),
+            'goals': sprint.get('goals', []),
+            'outcomes': sprint.get('outcomes'),
+            'project_id': sprint.get('project_id')
+        },
+        'project': project,
+        'team_members': members,
+        'stats': {
+            'total': total,
+            'submitted': submitted,
+            'pending': total - submitted,
+            'percentage': round((submitted / total * 100), 1) if total > 0 else 0
+        }
+    })
+
 @sprint_bp.route('/<sprint_id>/invite-links', methods=['GET'])
 @require_admin
 def get_invite_links(sprint_id):

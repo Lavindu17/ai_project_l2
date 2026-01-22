@@ -215,6 +215,11 @@ class DatabaseService:
         response = self.client.table('projects').update(updates).eq('id', project_id).execute()
         return response.data[0] if response.data else None
     
+    def get_sprints_by_project(self, project_id: str) -> List[Dict]:
+        """Get all sprints associated with a project"""
+        response = self.client.table('sprints').select('*').eq('project_id', project_id).order('created_at', desc=True).execute()
+        return response.data if response.data else []
+    
     def get_project_team_members(self, project_id: str) -> List[Dict]:
         """Get all team members from sprints associated with a project"""
         # First get all sprints for the project

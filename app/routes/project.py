@@ -93,6 +93,13 @@ def update_project(project_id):
         'project': project
     })
 
+@project_bp.route('/<project_id>/sprints', methods=['GET'])
+@require_admin
+def get_project_sprints(project_id):
+    """Get all sprints associated with a project"""
+    sprints = db.get_sprints_by_project(project_id)
+    return jsonify({'sprints': sprints})
+
 @project_bp.route('/<project_id>/team', methods=['GET'])
 @require_admin
 def get_project_team(project_id):

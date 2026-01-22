@@ -8,6 +8,7 @@ import Home from './pages/Home';
 import CreateSprint from './pages/CreateSprint';
 import SprintReport from './pages/SprintReport';
 import CreateProject from './pages/CreateProject';
+import SprintDetail from './pages/SprintDetail';
 
 import './styles/main.css';
 
@@ -28,6 +29,7 @@ function App() {
 
         {/* Admin Routes */}
         <Route path="/admin/sprint/create" element={<CreateSprint />} />
+        <Route path="/admin/sprint/:id" element={<SprintDetail />} />
         <Route path="/admin/sprint/:id/report" element={<SprintReport />} />
         <Route path="/admin/project/create" element={<CreateProject />} />
 

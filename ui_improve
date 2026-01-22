@@ -1,0 +1,190 @@
+Apple’s UI design is anchored in a small set of core principles (like clarity, deference, depth, hierarchy, harmony, consistency, and accessibility) that you can expand into a practical “12‑principle” checklist for beautiful, clear, and fully accessible interfaces.
+​
+
+Core visual philosophy
+Clarity first, always
+
+Ensure text is highly legible, icons are precise, and layout creates a clear visual hierarchy so people instantly understand what’s important.
+​
+
+Use clean typography, generous whitespace, and unambiguous affordances so users can act with confidence, not guess.
+​
+
+Defer to content, not chrome
+
+Let content be the hero and keep decorative UI elements minimal so they never compete with what the user came to see or do.
+​
+
+Use subtle bars, translucency, and lightweight controls that guide interaction without drawing unnecessary attention.
+​
+
+Use depth for context and focus
+
+Apply layering, blur, and shadows to show what is foreground vs background and where the user currently is in the experience.
+​
+
+Reinforce this depth with motion, like views scaling or sliding from predictable origins, to maintain spatial continuity.
+​
+
+Establish strong hierarchy
+
+Visually prioritize the primary task and actions using size, weight, and placement so users never wonder “what now?”.
+​
+
+Reserve bold color and prominence for primary actions while secondary and destructive actions recede appropriately.
+​
+
+System harmony and consistency
+Align with platform harmony
+
+Match the look and feel of the OS (rounded corners, dynamic materials, default typography) so the app feels like part of the device, not a foreign object.
+​
+
+Reuse system components and patterns so users transfer what they already know from other Apple apps.
+​
+
+Respect consistency and conventions
+
+Use standard icons, gestures, and placement (e.g., tab bars at bottom, system back behavior) instead of inventing new patterns for common tasks.
+​
+
+Keep behavior consistent across screens and window sizes, even when layouts adapt, so the same action always feels and works the same.
+​
+
+Design adaptable, not rigid layouts
+
+Use responsive layouts and constraints so the interface scales gracefully across iPhone, iPad, Mac, and varying window sizes.
+​
+
+Maintain the same mental model and hierarchy even as elements reposition for different orientations or display environments.
+​
+
+Functionality and usability
+Prioritize usability over decoration
+
+Treat visual polish as serving function: every color, icon, and animation must help the user understand or accomplish something.
+​
+
+Avoid visual noise and gratuitous effects that add cognitive load without improving comprehension or efficiency.
+​
+
+Make interactions obvious and lightweight
+
+Ensure tappable areas are large enough, feedback is immediate, and transitions are smooth so the system feels responsive and “just works.”
+​
+
+Use familiar interaction patterns and gestures so people can predict results, reducing errors and the need for instructions.
+​
+
+Communicate state and feedback clearly
+
+Clearly show loading, success, errors, and selection states using motion, color, and icons that are easy to interpret at a glance.
+​
+
+Avoid ambiguous states; users should always know what is happening and what the system expects from them next.
+​
+
+Accessibility and inclusion
+Bake in accessibility from the start
+
+Support Dynamic Type, sufficient color contrast, VoiceOver, and accessible hit targets so people of varied abilities can use the product fully.
+​
+
+Avoid using color alone to convey meaning, and ensure labels, traits, and order make sense to assistive technologies.
+​
+
+Support personalization and inclusion
+
+Allow users to adjust typography, colors, motion, and interaction modes so the interface adapts to their needs and preferences.
+​
+
+Design for multiple input and sensory modalities (touch, keyboard, voice, haptics) so no single way of interaction is mandatory.
+
+
+Colors
+Use a limited semantic palette: grayscale backgrounds + one primary accent (like “system blue”) and a few semantic states (success, warning, error) instead of many random brand colors.
+​
+
+Prefer system/semantic colors that adapt to light/dark mode (e.g., label, secondaryLabel, systemBackground, systemBlue) so contrast and accessibility stay correct automatically.
+​
+
+Maintain high contrast: follow at least ~7:1 ratio for small text and important UI, and never rely on color alone to convey meaning (always pair with text or icons).
+​
+
+Concrete accents often used in iOS (approximate RGBA, fine for web prototypes): system blue rgba(0,122,255,1) light and rgba(10,132,255,1) dark; system red rgba(255,59,48,1); system green rgba(52,199,89,1).
+​
+
+Corner roundings
+Use generous radiuses for controls to get that “friendly” iOS feel; common iOS UI kits use around 10–13 px radius for cards and buttons at 1x scale (e.g., 44–56 px high buttons).
+​
+
+Keep radiuses consistent per component type:
+
+Small buttons/chips: 8–10 px
+
+Standard buttons, text fields: 10–12 px
+
+Large cards/panels: 12–16 px
+These values scale with your base size, but relationships should stay consistent.
+​
+
+Avoid mixed shapes in one view; either mostly rounded rectangles or mostly circular elements, with only truly special items (e.g., avatars) going full circle.
+​
+
+For icons specifically, Apple uses an approximate 1:6.4 ratio of corner radius to icon size (e.g., 19 px icon → ~3 px radius), which you can reuse for app-like iconography.
+​
+
+Spacing and layout
+Base your spacing on an 8‑point grid: paddings and gaps typically in 4/8/12/16/24/32‑point increments; Apple particularly leans on 8, 16, and 32 for core layout rhythm.
+​
+
+Use more space around primary content: outer margins larger (e.g., 16–20), inner content paddings smaller (8–12) so key information “breathes” while remaining compact.
+​
+
+Respect safe areas: keep text and actionable controls inside platform safe areas and use default OS margins unless you have a clear reason to override them.
+​
+
+Handy pattern you can copy for mobile (in points/px at 1x):
+
+Screen horizontal padding: 16
+
+Card internal padding: 16 (top/bottom), 16–20 (left/right)
+
+Vertical gaps: 8 between related items, 16–24 between groups.
+​
+
+Fonts and typefaces
+Use Apple’s system typefaces when on Apple platforms: SF Pro for UI (sans‑serif) and New York for serif text; download from the official fonts page for design work.
+​
+
+SF Pro has text and display optical sizes; use Text for body and small UI labels, Display for large titles/headlines where tighter spacing looks better.
+​
+​
+
+Never hard‑code single sizes; design with Dynamic Type in mind so labels, titles, and body text scale across accessibility settings.
+​
+
+For web/Android equivalents, a near match is:
+
+Use a clean neo‑grotesque sans like Inter, SF Pro (if allowed), or system‑ui stack like -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif.
+​
+
+Typography tips (hierarchy + rhythm)
+Build a simple, stable hierarchy: e.g.,
+
+Large title: 28–34, semibold
+
+Section title: 20–22, semibold
+
+Body: 15–17, regular
+
+Caption/secondary: 12–13, regular
+Keep line heights generous (about 1.3–1.5) to match Apple’s open look.
+​
+
+Use weight and size, not random colors, to show hierarchy: darker and larger for primary text, lighter secondaryLabel color and smaller size for metadata.
+​
+
+Left‑align almost all body and UI text; center only short labels or titles, and avoid justified text because it hurts readability on narrow screens.
+​
+​

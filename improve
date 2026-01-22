@@ -1,0 +1,25 @@
+I wnat this flow to be implemented
+
+Admin Create a project. Admin defines the team members. There name, role and email address.
+Role is selected from a dropdown. Role can be Developer, Designer, QA, PM, PO, etc.
+
+Admin create a sprint. Admin defines the sprint name, start date, end date, and team members. team members are comes from hte project.
+Admin will define sprint goals. Admin will define the sprint duration.
+At the end of the sprint admin will share what is the progress, what went right what went wrong.
+
+Then send a request to generate a link.
+
+System will send an unique code to each team member through email(supabase).
+
+Team member will open the link and enter the code.
+
+based on the code system will identify who is the team member and there role.
+
+then the chatbot will initiate a conversation. ( with the information of the project and sprint)
+then have a conversation related to the sprint and project.
+
+at the end of the conversation the chatbot will ask for the feedback.
+
+then save the summary to the database.
+
+after gathering information from all team members, agent will initiate the report generation process. it will get all the summaries saved in the database related to the sprint and then generate a report.

@@ -8,6 +8,64 @@ chat_bp = Blueprint('chat', __name__)
 db = DatabaseService()
 ai = GeminiService()
 
+@chat_bp.route('/api/chat/start-session', methods=['POST'])
+def start_session():
+    """Start chat session for logged-in user"""
+    if not session.get('email'):
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    data = request.json
+    sprint_id = data.get('sprint_id')
+    
+    # Check membership
+    user_email = session.get('email')
+    members = db.get_team_members(sprint_id)
+    member = next((m for m in members if m.get('email') == user_email), None)
+    
+    if not member and session.get('role') != 'leader':
+        return jsonify({'error': 'Not a member of this sprint'}), 403
+        
+    # If leader is testing, mock a member object or handle differently
+    if not member and session.get('role') == 'leader':
+        member = {'id': None, 'name': session.get('full_name', 'Leader'), 'role': 'Project Lead'}
+    
+    # Check for existing active session
+    if member.get('id'):
+        existing_session = db.get_active_session(sprint_id, member.get('id'))
+        if existing_session:
+            session_token = existing_session['session_token']
+            history = existing_session.get('conversation_history', [])
+            
+            session['session_token'] = session_token
+            session['sprint_id'] = sprint_id
+            session['member_id'] = member.get('id')
+            session['member_name'] = member.get('name')
+            session['member_role'] = member.get('role', 'Team Member')
+            
+            return jsonify({
+                'success': True,
+                'session_token': session_token,
+                'member': member,
+                'history': history,
+                'restored': True
+            })
+
+    # Create session
+    session_token = str(uuid.uuid4())
+    session['session_token'] = session_token
+    session['sprint_id'] = sprint_id
+    session['member_id'] = member.get('id')
+    session['member_name'] = member.get('name')
+    session['member_role'] = member.get('role', 'Team Member')
+    
+    db.create_session(sprint_id, session_token, member_id=member.get('id'))
+    
+    return jsonify({
+        'success': True,
+        'session_token': session_token,
+        'member': member
+    })
+
 @chat_bp.route('/api/chat/validate/<token>', methods=['GET'])
 def validate_chat_token(token):
     """Validate chat token and return session info"""
@@ -20,6 +78,22 @@ def validate_chat_token(token):
     if sprint.get('status') not in ['collecting', 'active']:
         return jsonify({'valid': False, 'error': 'This retrospective is no longer accepting responses'}), 403
     
+    # Check for existing active session in cookie
+    current_session_token = session.get('session_token')
+    if current_session_token:
+        # Verify it belongs to this sprint
+        history = db.get_conversation_history(current_session_token)
+        # We assume if history exists (or even empty list returned from verify), it's valid.
+        # Ideally we'd validte sprint_id too, but session['sprint_id'] should match.
+        if session.get('sprint_id') == sprint['id']:
+            return jsonify({
+                'valid': True,
+                'sprint': sprint,
+                'session_token': current_session_token,
+                'history': history,
+                'restored': True
+            })
+
     # Create new session for this chat
     session_token = str(uuid.uuid4())
     session['session_token'] = session_token
@@ -32,6 +106,107 @@ def validate_chat_token(token):
         'valid': True,
         'sprint': sprint,
         'session_token': session_token
+    })
+
+@chat_bp.route('/api/chat/validate-code/<code>', methods=['GET'])
+def validate_access_code(code):
+    """Validate access code and return team member info with sprint context"""
+    # Get team member by access code
+    member = db.get_team_member_by_code(code)
+    
+    if not member:
+        return jsonify({'valid': False, 'error': 'Invalid access code'}), 404
+    
+    # Check if already submitted
+    is_submitted = member.get('has_submitted', False)
+    # We now allow them to proceed but in read-only mode if submitted
+
+    
+    # Get sprint info (nested in the query result)
+    sprint = member.get('sprints')
+    if not sprint:
+        return jsonify({'valid': False, 'error': 'Sprint not found'}), 404
+    
+    if sprint.get('status') not in ['collecting', 'active']:
+        return jsonify({
+            'valid': False, 
+            'error': 'This retrospective is no longer accepting responses'
+        }), 403
+    
+    # Check for existing active session
+    existing_session = db.get_active_session(sprint['id'], member['id'])
+    
+    if existing_session:
+        session_token = existing_session['session_token']
+        history = existing_session.get('conversation_history', [])
+        
+        session['session_token'] = session_token
+        session['sprint_id'] = sprint['id']
+        session['member_id'] = member['id']
+        session['member_name'] = member['name']
+        session['member_role'] = member.get('role', 'Team Member')
+        
+        # Get sprint context for AI (needed for response structure)
+        sprint_context = db.get_sprint_with_context(sprint['id'])
+        
+        return jsonify({
+            'valid': True,
+            'member': {
+                'id': member['id'],
+                'name': member['name'],
+                'role': member.get('role', 'Team Member'),
+                'email': member.get('email'),
+                'has_submitted': is_submitted
+            },
+            'sprint': {
+                'id': sprint['id'],
+                'name': sprint.get('name'),
+                'start_date': sprint.get('start_date'),
+                'end_date': sprint.get('end_date'),
+                'goals': sprint_context.get('goals', []) if sprint_context else [],
+                'outcomes': sprint_context.get('outcomes') if sprint_context else None,
+                'project': sprint_context.get('project') if sprint_context else None
+            },
+            'session_token': session_token,
+            'history': history,
+            'restored': True,
+            'submitted': is_submitted
+        })
+
+    # Create new session for this chat
+    session_token = str(uuid.uuid4())
+    session['session_token'] = session_token
+    session['sprint_id'] = sprint['id']
+    session['member_id'] = member['id']
+    session['member_name'] = member['name']
+    session['member_role'] = member.get('role', 'Team Member')
+    
+    # Create session in database
+    db.create_session(sprint['id'], session_token, member_id=member['id'])
+    
+    # Get sprint context for AI
+    sprint_context = db.get_sprint_with_context(sprint['id'])
+    
+    return jsonify({
+        'valid': True,
+        'member': {
+            'id': member['id'],
+            'name': member['name'],
+            'role': member.get('role', 'Team Member'),
+            'email': member.get('email'),
+            'has_submitted': is_submitted
+        },
+        'sprint': {
+            'id': sprint['id'],
+            'name': sprint.get('name'),
+            'start_date': sprint.get('start_date'),
+            'end_date': sprint.get('end_date'),
+            'goals': sprint_context.get('goals', []) if sprint_context else [],
+            'outcomes': sprint_context.get('outcomes') if sprint_context else None,
+            'project': sprint_context.get('project') if sprint_context else None
+        },
+        'session_token': session_token,
+        'submitted': is_submitted
     })
 
 @chat_bp.route('/api/chat/message', methods=['POST'])
@@ -57,14 +232,37 @@ def send_message():
         'timestamp': datetime.utcnow().isoformat()
     })
     
-    # Get AI response
+    # Get AI response with context
     try:
-        ai_response = ai.conduct_interview(history, user_message)
+        # Build context for AI
+        sprint_id = session.get('sprint_id')
+        member_name = session.get('member_name', 'Team Member')
+        member_role = session.get('member_role', 'Team Member')
         
-        # Add AI response to history
+        # Get sprint context if available
+        context = None
+        if sprint_id:
+            context = db.get_sprint_with_context(sprint_id)
+        
+        # Get AI response with role awareness
+        ai_response = ai.conduct_interview(
+            history, 
+            user_message,
+            member_name=member_name,
+            member_role=member_role,
+            sprint_context=context
+        )
+        
+        # Check for ready to submit signal
+        ready_to_submit = '[READY_TO_SUBMIT]' in ai_response
+        
+        # Clean the signal from the response shown to user
+        clean_response = ai_response.replace('[READY_TO_SUBMIT]', '').strip()
+        
+        # Add AI response to history (with cleaned response)
         history.append({
             'role': 'ai',
-            'content': ai_response,
+            'content': clean_response,
             'timestamp': datetime.utcnow().isoformat()
         })
         
@@ -73,8 +271,9 @@ def send_message():
         
         return jsonify({
             'success': True,
-            'response': ai_response,
-            'message_count': len(history)
+            'response': clean_response,
+            'message_count': len(history),
+            'ready_to_submit': ready_to_submit
         })
     
     except Exception as e:
@@ -87,11 +286,13 @@ def submit_response():
     data = request.json
     session_token = session.get('session_token')
     sprint_id = session.get('sprint_id')
+    member_id = session.get('member_id')
     
     if not session_token or not sprint_id:
         return jsonify({'error': 'No active session'}), 401
     
-    user_name = data.get('name', '').strip() or 'Anonymous'
+    # Use member name from session if available
+    user_name = session.get('member_name') or data.get('name', '').strip() or 'Anonymous'
     is_anonymous = data.get('is_anonymous', False)
     
     # Get final conversation
@@ -100,18 +301,29 @@ def submit_response():
     if len(conversation) == 0:
         return jsonify({'error': 'No conversation to submit'}), 400
     
-    # Save response
+    # Generate structured summary
+    member_role = session.get('member_role', 'Team Member')
+    summary_data = ai.generate_conversation_summary(
+        conversation_history=conversation,
+        member_name=user_name,
+        member_role=member_role
+    )
+    
+    # Save response with summary
     try:
         response_id = db.save_response(
             sprint_id=sprint_id,
             user_name=user_name if not is_anonymous else 'Anonymous',
             is_anonymous=is_anonymous,
             conversation=conversation,
-            session_token=session_token
+            session_token=session_token,
+            summary_data=summary_data
         )
         
-        # Mark team member as submitted (if not anonymous)
-        if not is_anonymous:
+        # Mark team member as submitted
+        if member_id:
+            db.mark_member_submitted_by_id(member_id)
+        elif not is_anonymous:
             db.mark_member_submitted(sprint_id, user_name)
         
         # Clear session
@@ -132,3 +344,68 @@ def get_chat_history(session_token):
     """Get conversation history for a session"""
     history = db.get_conversation_history(session_token)
     return jsonify({'history': history})
+
+@chat_bp.route('/api/chat/current-session', methods=['GET'])
+def get_current_session():
+    """Retrieve current session info from cookie if active"""
+    session_token = session.get('session_token')
+    sprint_id = session.get('sprint_id')
+    
+    print(f"DEBUG: get_current_session - Token: {session_token}, Sprint: {sprint_id}")
+    print(f"DEBUG: Session keys: {list(session.keys())}")
+
+    if not session_token or not sprint_id:
+        return jsonify({'active': False}), 200
+        
+    # Verify session still exists in DB
+    history = db.get_conversation_history(session_token)
+    
+    # Get sprint context
+    sprint_context = db.get_sprint_with_context(sprint_id)
+    if not sprint_context:
+        print("DEBUG: Sprint context not found")
+        return jsonify({'active': False}), 200
+        
+    return jsonify({
+        'active': True,
+        'session_token': session_token,
+        'history': history,
+        'sprint': {
+            'id': sprint_context['id'],
+            'name': sprint_context.get('name'),
+            'start_date': sprint_context.get('start_date'),
+            'end_date': sprint_context.get('end_date'),
+            'goals': sprint_context.get('goals', []),
+            'outcomes': sprint_context.get('outcomes'),
+            'project': sprint_context.get('project')
+        },
+    # Get member details
+    member_id = session.get('member_id')
+    members = db.get_team_members(sprint_id)
+    member = next((m for m in members if m.get('id') == member_id), None)
+    
+    # Fallback to session data if member not found (shouldn't happen)
+    if not member:
+        member = {
+            'id': session.get('member_id'),
+            'name': session.get('member_name'),
+            'role': session.get('member_role'),
+            'email': session.get('email')
+        }
+
+    return jsonify({
+        'active': True,
+        'session_token': session_token,
+        'history': history,
+        'sprint': {
+            'id': sprint_context['id'],
+            'name': sprint_context.get('name'),
+            'start_date': sprint_context.get('start_date'),
+            'end_date': sprint_context.get('end_date'),
+            'goals': sprint_context.get('goals', []),
+            'outcomes': sprint_context.get('outcomes'),
+            'project': sprint_context.get('project')
+        },
+        'member': member
+    })
+

@@ -22,11 +22,15 @@ def create_app(config_name='default'):
     from app.routes.chat import chat_bp
     from app.routes.analysis import analysis_bp
     from app.routes.admin import admin_bp
+    from app.routes.project import project_bp
+    from app.routes.auth import auth_bp
     
     app.register_blueprint(sprint_bp)
     app.register_blueprint(chat_bp)
     app.register_blueprint(analysis_bp)
     app.register_blueprint(admin_bp)
+    app.register_blueprint(project_bp)
+    app.register_blueprint(auth_bp)
     
     # Home route
     @app.route('/')

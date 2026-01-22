@@ -86,7 +86,12 @@ class GroqService:
                               sprint_info: str, role_guidance: str, 
                               conversation_history: List[Dict], user_message: str) -> List[Dict]:
         """Build messages array for Groq API"""
-        # Build system message
+        # Count user messages to determine current question number
+        user_message_count = sum(1 for msg in conversation_history if msg.get('role') == 'user')
+        # Adding current message makes it user_message_count + 1 responses given
+        current_question = min(user_message_count + 1, 8)
+        
+        # Build system message with question tracking
         system_content = f"""{system_prompt}
 
 TEAM MEMBER INFORMATION:
@@ -98,11 +103,17 @@ TEAM MEMBER INFORMATION:
 ROLE-SPECIFIC GUIDANCE:
 {role_guidance}
 
-Keep your responses to 2-3 sentences maximum. Ask relevant follow-up questions based on their role when appropriate."""
+CURRENT STATE:
+- User has answered {user_message_count} question(s) so far
+- After processing this response, ask Question {current_question + 1 if current_question < 8 else 8} (or complete if this is Q8's answer)
+- Remember to include [Q:{current_question + 1 if current_question < 8 else 8}/8] in your response
+- If user has answered 8 questions, add [INTERVIEW_COMPLETE] instead
+
+Keep your responses to 2-3 sentences maximum."""
         
         messages = [{"role": "system", "content": system_content}]
         
-        # Add conversation history (last 5 messages for context window)
+        # Add conversation history (last 10 messages for context window)
         for msg in conversation_history[-10:]:
             role = "assistant" if msg['role'] == 'ai' else "user"
             messages.append({"role": role, "content": msg['content']})

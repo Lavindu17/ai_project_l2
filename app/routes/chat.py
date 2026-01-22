@@ -255,11 +255,22 @@ def send_message():
             sprint_context=context
         )
         
-        # Check for ready to submit signal
-        ready_to_submit = '[READY_TO_SUBMIT]' in ai_response
+        # Parse question number from response [Q:N/8]
+        import re
+        question_match = re.search(r'\[Q:(\d)/8\]', ai_response)
+        question_number = int(question_match.group(1)) if question_match else 0
         
-        # Clean the signal from the response shown to user
-        clean_response = ai_response.replace('[READY_TO_SUBMIT]', '').strip()
+        # Check for interview complete signal
+        interview_complete = '[INTERVIEW_COMPLETE]' in ai_response
+        
+        # Also check for old ready_to_submit signal (backward compat)
+        ready_to_submit = '[READY_TO_SUBMIT]' in ai_response or interview_complete
+        
+        # Clean the markers from the response shown to user
+        clean_response = ai_response
+        clean_response = re.sub(r'\s*\[Q:\d/8\]', '', clean_response)
+        clean_response = clean_response.replace('[INTERVIEW_COMPLETE]', '').strip()
+        clean_response = clean_response.replace('[READY_TO_SUBMIT]', '').strip()
         
         # Add AI response to history (with cleaned response)
         history.append({
@@ -275,6 +286,9 @@ def send_message():
             'success': True,
             'response': clean_response,
             'message_count': len(history),
+            'question_number': question_number,
+            'total_questions': 8,
+            'interview_complete': interview_complete,
             'ready_to_submit': ready_to_submit
         })
     

@@ -18,6 +18,9 @@ const ChatInterface = () => {
     const [submitted, setSubmitted] = useState(false);
     const [readyToSubmit, setReadyToSubmit] = useState(false);
     const [isReadOnly, setIsReadOnly] = useState(false);
+    const [questionNumber, setQuestionNumber] = useState(1);
+    const [totalQuestions] = useState(8);
+    const [interviewComplete, setInterviewComplete] = useState(false);
 
     const messagesEndRef = useRef(null);
 
@@ -196,7 +199,17 @@ const ChatInterface = () => {
             const response = await client.post('/api/chat/message', { message: userMsg });
             if (response.data.success) {
                 setMessages([...newMessages, { role: 'ai', content: response.data.response }]);
-                if (response.data.ready_to_submit) {
+
+                // Update question progress
+                if (response.data.question_number) {
+                    setQuestionNumber(response.data.question_number);
+                }
+
+                // Check if interview is complete
+                if (response.data.interview_complete) {
+                    setInterviewComplete(true);
+                    setReadyToSubmit(true);
+                } else if (response.data.ready_to_submit) {
                     setReadyToSubmit(true);
                 }
             }
@@ -285,12 +298,28 @@ const ChatInterface = () => {
                             </div>
                         )}
                     </div>
+
+                    {/* Progress Tracker */}
+                    {!isReadOnly && !interviewComplete && (
+                        <div style={styles.progressTracker}>
+                            <div style={styles.progressLabel}>
+                                Question {questionNumber} of {totalQuestions}
+                            </div>
+                            <div style={styles.progressBarContainer}>
+                                <div style={{
+                                    ...styles.progressBarFill,
+                                    width: `${(questionNumber / totalQuestions) * 100}%`
+                                }} />
+                            </div>
+                        </div>
+                    )}
+
                     {isReadOnly ? (
                         <div style={styles.submittedBadge}>
                             ✓ Feedback Submitted
                         </div>
                     ) : (
-                        (readyToSubmit || messages.length >= 6) && (
+                        interviewComplete && (
                             <button onClick={handleSubmit} style={styles.submitButton}>
                                 ✓ Submit Feedback
                             </button>
@@ -322,19 +351,19 @@ const ChatInterface = () => {
 
             <form onSubmit={handleSend} style={styles.inputForm}>
                 <div style={styles.inputGroup}>
-                    {readyToSubmit && !isReadOnly && (
+                    {interviewComplete && !isReadOnly && (
                         <div style={styles.readyOverlay}>
-                            <p>Great! I have enough information. Please submit your feedback.</p>
+                            <p>✅ Interview complete! Please submit your feedback above.</p>
                         </div>
                     )}
                     <textarea
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
-                        placeholder={isReadOnly ? "Feedback submitted. Chat is read-only." : (readyToSubmit ? "Please submit your feedback." : "Share your thoughts...")}
+                        placeholder={isReadOnly ? "Feedback submitted. Chat is read-only." : (interviewComplete ? "Interview complete. Please submit your feedback." : "Share your thoughts...")}
                         style={{
                             ...styles.textarea,
-                            backgroundColor: (isReadOnly || readyToSubmit) ? '#edf2f7' : '#fafbff',
-                            cursor: (isReadOnly || readyToSubmit) ? 'not-allowed' : 'text'
+                            backgroundColor: (isReadOnly || interviewComplete) ? '#edf2f7' : '#fafbff',
+                            cursor: (isReadOnly || interviewComplete) ? 'not-allowed' : 'text'
                         }}
                         onKeyDown={(e) => {
                             if (e.key === 'Enter' && !e.shiftKey) {
@@ -342,12 +371,12 @@ const ChatInterface = () => {
                                 handleSend(e);
                             }
                         }}
-                        disabled={isReadOnly || readyToSubmit}
+                        disabled={isReadOnly || interviewComplete}
                     />
                     <button
                         type="submit"
-                        style={(input.trim() && !sending && !isReadOnly && !readyToSubmit) ? styles.sendButton : styles.sendButtonDisabled}
-                        disabled={sending || !input.trim() || isReadOnly || readyToSubmit}
+                        style={(input.trim() && !sending && !isReadOnly && !interviewComplete) ? styles.sendButton : styles.sendButtonDisabled}
+                        disabled={sending || !input.trim() || isReadOnly || interviewComplete}
                     >
                         Send
                     </button>
@@ -363,14 +392,18 @@ const styles = {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
         padding: '20px',
     },
     loadingContainer: {
         textAlign: 'center',
+        backgroundColor: 'white',
+        padding: '48px',
+        borderRadius: '20px',
+        boxShadow: '0 10px 40px rgba(0,0,0,0.08)',
     },
     loadingText: {
-        color: 'white',
+        color: '#4a5568',
         fontSize: '16px',
         marginTop: '16px',
     },
@@ -400,13 +433,14 @@ const styles = {
     },
     backButton: {
         padding: '14px 32px',
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        background: '#4299e1',
         color: 'white',
         border: 'none',
         borderRadius: '12px',
         cursor: 'pointer',
         fontWeight: '600',
         fontSize: '15px',
+        boxShadow: '0 4px 6px rgba(66, 153, 225, 0.3)',
     },
     successContainer: {
         backgroundColor: 'rgba(255, 255, 255, 0.95)',
@@ -466,12 +500,13 @@ const styles = {
         height: '100vh',
         display: 'flex',
         flexDirection: 'column',
-        background: 'linear-gradient(180deg, #f0f4ff 0%, #fafbff 100%)',
+        background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
     },
     header: {
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        background: 'white',
         padding: '20px 24px',
-        boxShadow: '0 4px 20px rgba(102, 126, 234, 0.25)',
+        boxShadow: '0 4px 6px rgba(0,0,0,0.05)',
+        borderBottom: '1px solid #e2e8f0',
     },
     headerContent: {
         display: 'flex',
@@ -482,7 +517,7 @@ const styles = {
     headerTitle: {
         fontSize: '22px',
         fontWeight: '700',
-        color: 'white',
+        color: '#1a202c',
         marginBottom: '6px',
     },
     headerMeta: {
@@ -491,32 +526,37 @@ const styles = {
         gap: '10px',
     },
     memberName: {
-        color: 'rgba(255,255,255,0.9)',
+        color: '#4a5568',
         fontSize: '14px',
     },
     roleBadge: {
-        background: 'rgba(255,255,255,0.2)',
-        color: 'white',
+        background: '#ebf8ff',
+        color: '#4299e1',
         padding: '4px 12px',
         borderRadius: '20px',
         fontSize: '12px',
-        fontWeight: '500',
+        fontWeight: '600',
     },
     submitButton: {
         padding: '12px 24px',
-        background: 'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)',
+        background: '#48bb78',
         color: 'white',
         border: 'none',
-        borderRadius: '10px',
+        borderRadius: '12px',
         fontSize: '14px',
         fontWeight: '600',
         cursor: 'pointer',
-        boxShadow: '0 4px 15px rgba(17, 153, 142, 0.35)',
+        boxShadow: '0 4px 6px rgba(72, 187, 120, 0.3)',
+        transition: 'all 0.2s',
     },
     messagesArea: {
         flex: 1,
         overflowY: 'auto',
         padding: '24px',
+        background: 'white',
+        margin: '16px',
+        borderRadius: '20px',
+        boxShadow: '0 4px 6px rgba(0,0,0,0.05)',
     },
     userMessageRow: {
         display: 'flex',
@@ -533,41 +573,40 @@ const styles = {
         width: '40px',
         height: '40px',
         borderRadius: '50%',
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        background: '#4299e1',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         fontSize: '18px',
         flexShrink: 0,
-        boxShadow: '0 4px 12px rgba(102, 126, 234, 0.25)',
+        color: 'white',
     },
     aiAvatar: {
         width: '40px',
         height: '40px',
         borderRadius: '50%',
-        background: 'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)',
+        background: '#48bb78',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         fontSize: '18px',
         flexShrink: 0,
-        boxShadow: '0 4px 12px rgba(17, 153, 142, 0.25)',
+        color: 'white',
     },
     userBubble: {
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        background: '#4299e1',
         color: 'white',
         padding: '14px 18px',
         borderRadius: '18px 18px 4px 18px',
         maxWidth: '70%',
-        boxShadow: '0 4px 12px rgba(102, 126, 234, 0.2)',
+        boxShadow: '0 2px 8px rgba(66, 153, 225, 0.2)',
     },
     aiBubble: {
-        backgroundColor: 'white',
+        backgroundColor: '#f8fafc',
         color: '#2d3748',
         padding: '14px 18px',
         borderRadius: '18px 18px 18px 4px',
         maxWidth: '70%',
-        boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
         border: '1px solid #e2e8f0',
     },
     messageText: {
@@ -589,18 +628,21 @@ const styles = {
         width: '10px',
         height: '10px',
         borderRadius: '50%',
-        background: 'linear-gradient(135deg, #a0aec0 0%, #718096 100%)',
+        background: '#4299e1',
         animation: 'bounce 1.4s infinite',
     },
     inputForm: {
-        padding: '20px 24px',
-        backgroundColor: 'white',
-        borderTop: '1px solid #e2e8f0',
+        padding: '16px 16px 24px',
+        backgroundColor: 'transparent',
     },
     inputGroup: {
         display: 'flex',
         gap: '12px',
         alignItems: 'flex-end',
+        background: 'white',
+        padding: '16px',
+        borderRadius: '20px',
+        boxShadow: '0 4px 6px rgba(0,0,0,0.05)',
     },
     textarea: {
         flex: 1,
@@ -618,14 +660,15 @@ const styles = {
     },
     sendButton: {
         padding: '14px 28px',
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        background: '#4299e1',
         color: 'white',
         border: 'none',
         borderRadius: '12px',
         fontSize: '15px',
         fontWeight: '600',
         cursor: 'pointer',
-        boxShadow: '0 4px 15px rgba(102, 126, 234, 0.35)',
+        boxShadow: '0 4px 6px rgba(66, 153, 225, 0.3)',
+        transition: 'all 0.2s',
     },
     sendButtonDisabled: {
         padding: '14px 28px',
@@ -638,10 +681,10 @@ const styles = {
         cursor: 'not-allowed',
     },
     submittedBadge: {
-        background: 'rgba(255,255,255,0.2)',
-        color: 'white',
+        background: '#f0fff4',
+        color: '#047857',
         padding: '8px 16px',
-        borderRadius: '12px',
+        borderRadius: '20px',
         fontSize: '14px',
         fontWeight: '600',
         display: 'flex',
@@ -653,15 +696,41 @@ const styles = {
         bottom: '100%',
         left: '0',
         right: '0',
-        background: '#2d3748',
+        background: 'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)',
         color: 'white',
         padding: '12px 16px',
         borderRadius: '8px',
         marginBottom: '10px',
         fontSize: '14px',
         textAlign: 'center',
-        boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+        boxShadow: '0 4px 12px rgba(17, 153, 142, 0.25)',
         animation: 'fadeIn 0.3s ease',
+    },
+    progressTracker: {
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: '6px',
+        minWidth: '140px',
+    },
+    progressLabel: {
+        color: '#4a5568',
+        fontSize: '13px',
+        fontWeight: '600',
+        letterSpacing: '0.3px',
+    },
+    progressBarContainer: {
+        width: '100%',
+        height: '6px',
+        backgroundColor: '#e2e8f0',
+        borderRadius: '10px',
+        overflow: 'hidden',
+    },
+    progressBarFill: {
+        height: '100%',
+        background: '#4299e1',
+        borderRadius: '10px',
+        transition: 'width 0.4s ease-out',
     }
 };
 

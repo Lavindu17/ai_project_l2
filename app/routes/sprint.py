@@ -37,7 +37,7 @@ def create_sprint():
         'end_date': data['end_date'],
         'share_token': share_token,
         'status': 'collecting',
-        'created_by': session.get('admin_name', 'Admin'),
+        'created_by': session.get('user_id') or session.get('admin_name', 'Admin'),
         'project_id': data.get('project_id')  # Optional project association
     }
     
@@ -123,8 +123,12 @@ def close_sprint(sprint_id):
 @sprint_bp.route('/list', methods=['GET'])
 @require_admin
 def list_sprints():
-    """List all sprints"""
-    sprints = db.get_all_sprints()
+    """List sprints created by current user"""
+    user_id = session.get('user_id') or session.get('admin_name')
+    if not user_id:
+        return jsonify({'sprints': []})
+        
+    sprints = db.get_sprints_by_creator(user_id)
     return jsonify({'sprints': sprints})
 
 # =====================================================

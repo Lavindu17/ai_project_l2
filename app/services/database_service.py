@@ -40,6 +40,11 @@ class DatabaseService:
         """Update sprint status"""
         response = self.client.table('sprints').update({'status': status}).eq('id', sprint_id).execute()
         return response.data[0] if response.data else None
+        
+    def get_sprints_by_creator(self, user_id: str) -> List[Dict]:
+        """Get all sprints created by a specific user"""
+        response = self.client.table('sprints').select('*').eq('created_by', user_id).order('created_at', desc=True).execute()
+        return response.data if response.data else []
     
     # =====================================================
     # Team Member Operations
@@ -209,6 +214,23 @@ class DatabaseService:
         """Get all projects ordered by creation date"""
         response = self.client.table('projects').select('*').order('created_at', desc=True).execute()
         return response.data if response.data else []
+    
+    def get_projects_by_creator(self, user_id: str) -> List[Dict]:
+        """Get projects created by a specific user"""
+        response = self.client.table('projects').select('*').eq('created_by', user_id).order('created_at', desc=True).execute()
+        return response.data if response.data else []
+    
+    def migrate_project_ownership(self, old_identifier: str, new_user_id: str) -> int:
+        """Update projects and sprints from old identifier (name) to new user_id"""
+        # Update Projects
+        p_response = self.client.table('projects').update({'created_by': new_user_id}).eq('created_by', old_identifier).execute()
+        p_count = len(p_response.data) if p_response.data else 0
+        
+        # Update Sprints
+        s_response = self.client.table('sprints').update({'created_by': new_user_id}).eq('created_by', old_identifier).execute()
+        s_count = len(s_response.data) if s_response.data else 0
+        
+        return p_count + s_count
     
     def update_project(self, project_id: str, updates: Dict) -> Dict:
         """Update project details"""

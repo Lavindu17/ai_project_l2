@@ -76,6 +76,8 @@ const AdminDashboard = () => {
         }
     };
 
+
+
     const renderSprintCard = (sprint) => (
         <div key={sprint.id} style={styles.sprintCard}>
             <div style={styles.sprintCardHeader}>
@@ -116,6 +118,7 @@ const AdminDashboard = () => {
                     <p style={styles.headerSubtitle}>Manage your projects and retrospectives</p>
                 </div>
                 <div style={styles.headerActions}>
+
                     <button onClick={handleLogout} style={styles.logoutButton}>Logout</button>
                     <Link to="/admin/project/create" style={styles.secondaryButton}>
                         + Project

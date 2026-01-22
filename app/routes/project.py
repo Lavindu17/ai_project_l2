@@ -40,7 +40,7 @@ def create_project():
         'id': project_id,
         'name': data['name'],
         'description': data.get('description', ''),
-        'created_by': session.get('admin_name', 'Admin')
+        'created_by': session.get('user_id') # Store User ID for ownership
     }
     
     # Create project
@@ -60,13 +60,21 @@ def get_project(project_id):
     if not project:
         return jsonify({'error': 'Project not found'}), 404
     
+    # Check ownership
+    if project.get('created_by') != session.get('user_id'):
+        return jsonify({'error': 'Unauthorized'}), 403
+    
     return jsonify(project)
 
 @project_bp.route('/list', methods=['GET'])
 @require_admin
 def list_projects():
-    """List all projects"""
-    projects = db.get_all_projects()
+    """List projects created by current user"""
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'projects': []})
+        
+    projects = db.get_projects_by_creator(user_id)
     return jsonify({'projects': projects})
 
 @project_bp.route('/<project_id>', methods=['PUT'])
@@ -84,6 +92,14 @@ def update_project(project_id):
     if not updates:
         return jsonify({'error': 'No updates provided'}), 400
     
+    # Check existence and ownership first
+    existing = db.get_project(project_id)
+    if not existing:
+         return jsonify({'error': 'Project not found'}), 404
+         
+    if existing.get('created_by') != session.get('user_id'):
+        return jsonify({'error': 'Unauthorized'}), 403
+    
     project = db.update_project(project_id, updates)
     if not project:
         return jsonify({'error': 'Project not found'}), 404
@@ -97,12 +113,30 @@ def update_project(project_id):
 @require_admin
 def get_project_sprints(project_id):
     """Get all sprints associated with a project"""
+    # Check ownership
+    project = db.get_project(project_id)
+    if not project:
+         return jsonify({'error': 'Project not found'}), 404
+         
+    if project.get('created_by') != session.get('user_id'):
+        return jsonify({'error': 'Unauthorized'}), 403
+        
     sprints = db.get_sprints_by_project(project_id)
     return jsonify({'sprints': sprints})
+
+
 
 @project_bp.route('/<project_id>/team', methods=['GET'])
 @require_admin
 def get_project_team(project_id):
     """Get all team members associated with a project"""
+    # Check ownership
+    project = db.get_project(project_id)
+    if not project:
+         return jsonify({'error': 'Project not found'}), 404
+         
+    if project.get('created_by') != session.get('user_id'):
+        return jsonify({'error': 'Unauthorized'}), 403
+        
     members = db.get_project_team_members(project_id)
     return jsonify({'members': members})

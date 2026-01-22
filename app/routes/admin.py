@@ -41,6 +41,10 @@ def logout():
 @admin_bp.route('/dashboard', methods=['GET'])
 @require_admin
 def dashboard():
-    """Admin dashboard data"""
-    sprints = db.get_all_sprints()
+    """Admin dashboard data - Get sprints created by current user"""
+    user_id = session.get('user_id') or session.get('admin_name')
+    if not user_id:
+         return jsonify({'sprints': []})
+
+    sprints = db.get_sprints_by_creator(user_id)
     return jsonify({'sprints': sprints})

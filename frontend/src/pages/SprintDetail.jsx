@@ -1,5 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
+import {
+    ArrowLeft,
+    Folder,
+    CalendarRange,
+    CheckCircle,
+    Clock,
+    Users,
+    BarChart2,
+    Target
+} from 'lucide-react';
 import client from '../api/client';
 
 const SprintDetail = () => {
@@ -63,7 +73,7 @@ const SprintDetail = () => {
             {/* Header */}
             <div style={styles.header}>
                 <button onClick={() => navigate('/admin/dashboard')} style={styles.backButton}>
-                    ← Back to Dashboard
+                    <ArrowLeft size={16} style={{ marginRight: '6px' }} /> Back to Dashboard
                 </button>
             </div>
 
@@ -73,7 +83,7 @@ const SprintDetail = () => {
                     <div>
                         <h1 style={styles.sprintName}>{sprint.name}</h1>
                         {project && (
-                            <p style={styles.projectName}>📁 {project.name}</p>
+                            <p style={styles.projectName}><Folder size={14} style={{ display: 'inline', marginRight: '4px' }} /> {project.name}</p>
                         )}
                     </div>
                     <span style={{ ...styles.statusBadge, ...getStatusStyle(sprint.status) }}>
@@ -83,7 +93,7 @@ const SprintDetail = () => {
 
                 <div style={styles.metaRow}>
                     <div style={styles.metaItem}>
-                        <span style={styles.metaLabel}>📅 Duration</span>
+                        <span style={styles.metaLabel}><CalendarRange size={14} style={{ marginRight: '4px', verticalAlign: 'text-bottom' }} /> Duration</span>
                         <span style={styles.metaValue}>{sprint.start_date} → {sprint.end_date}</span>
                     </div>
                 </div>
@@ -98,9 +108,9 @@ const SprintDetail = () => {
                         <div style={{ ...styles.progressFill, width: `${stats.percentage}%` }}></div>
                     </div>
                     <div style={styles.progressStats}>
-                        <span style={styles.statItem}>✅ {stats.submitted} submitted</span>
-                        <span style={styles.statItem}>⏳ {stats.pending} pending</span>
-                        <span style={styles.statItem}>👥 {stats.total} total</span>
+                        <span style={styles.statItem}><CheckCircle size={14} style={{ verticalAlign: 'text-bottom' }} /> {stats.submitted} submitted</span>
+                        <span style={styles.statItem}><Clock size={14} style={{ verticalAlign: 'text-bottom' }} /> {stats.pending} pending</span>
+                        <span style={styles.statItem}><Users size={14} style={{ verticalAlign: 'text-bottom' }} /> {stats.total} total</span>
                     </div>
                 </div>
 
@@ -108,7 +118,7 @@ const SprintDetail = () => {
                 <div style={styles.actionRow}>
                     {sprint.status === 'analyzed' && (
                         <Link to={`/admin/sprint/${sprint.id}/report`} style={styles.reportButton}>
-                            📊 View Report
+                            <BarChart2 size={16} style={{ marginRight: '6px' }} /> View Report
                         </Link>
                     )}
                 </div>
@@ -117,7 +127,7 @@ const SprintDetail = () => {
             {/* Sprint Goals */}
             {sprint.goals && sprint.goals.length > 0 && (
                 <div style={styles.sectionCard}>
-                    <h2 style={styles.sectionTitle}>🎯 Sprint Goals</h2>
+                    <h2 style={styles.sectionTitle}><Target size={20} style={{ marginRight: '8px', verticalAlign: 'text-bottom' }} /> Sprint Goals</h2>
                     <ul style={styles.goalsList}>
                         {sprint.goals.map((goal, idx) => (
                             <li key={idx} style={styles.goalItem}>
@@ -131,7 +141,7 @@ const SprintDetail = () => {
 
             {/* Team Members */}
             <div style={styles.sectionCard}>
-                <h2 style={styles.sectionTitle}>👥 Team Members</h2>
+                <h2 style={styles.sectionTitle}><Users size={20} style={{ marginRight: '8px', verticalAlign: 'text-bottom' }} /> Team Members</h2>
 
                 {team_members.length === 0 ? (
                     <p style={styles.emptyText}>No team members added to this sprint.</p>
@@ -153,9 +163,9 @@ const SprintDetail = () => {
                                 )}
                                 <div style={styles.memberStatus}>
                                     {member.has_submitted ? (
-                                        <span style={styles.submittedBadge}>✓ Submitted</span>
+                                        <span style={styles.submittedBadge}><CheckCircle size={12} style={{ marginRight: '4px' }} /> Submitted</span>
                                     ) : (
-                                        <span style={styles.pendingBadge}>⏳ Pending</span>
+                                        <span style={styles.pendingBadge}><Clock size={12} style={{ marginRight: '4px' }} /> Pending</span>
                                     )}
                                 </div>
                             </div>
@@ -171,7 +181,7 @@ const styles = {
     container: {
         minHeight: '100vh',
         padding: '24px',
-        background: 'linear-gradient(180deg, #f0f4ff 0%, #fafbff 100%)',
+        background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)', // Match AuthPage
     },
     loadingContainer: {
         display: 'flex',
@@ -179,7 +189,7 @@ const styles = {
         alignItems: 'center',
         justifyContent: 'center',
         minHeight: '100vh',
-        background: 'linear-gradient(180deg, #f0f4ff 0%, #fafbff 100%)',
+        background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
     },
     loadingText: {
         marginTop: '16px',
@@ -193,7 +203,7 @@ const styles = {
         justifyContent: 'center',
         minHeight: '100vh',
         padding: '24px',
-        background: 'linear-gradient(180deg, #f0f4ff 0%, #fafbff 100%)',
+        background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
     },
     errorIcon: {
         fontSize: '48px',
@@ -216,14 +226,15 @@ const styles = {
     backButton: {
         padding: '12px 20px',
         backgroundColor: 'white',
-        border: '2px solid #e2e8f0',
+        border: '1px solid #e2e8f0',
         borderRadius: '10px',
         cursor: 'pointer',
         fontSize: '14px',
-        fontWeight: '500',
+        fontWeight: '600',
         color: '#4a5568',
         textDecoration: 'none',
         display: 'inline-block',
+        transition: 'all 0.2s',
     },
     mainCard: {
         maxWidth: '900px',
@@ -231,7 +242,7 @@ const styles = {
         backgroundColor: 'white',
         borderRadius: '20px',
         padding: '32px',
-        boxShadow: '0 10px 40px rgba(0,0,0,0.08)',
+        boxShadow: '0 4px 6px rgba(0,0,0,0.05)',
     },
     sprintHeader: {
         display: 'flex',
@@ -248,7 +259,7 @@ const styles = {
     },
     projectName: {
         fontSize: '16px',
-        color: '#5a67d8',
+        color: '#4299e1',
         margin: 0,
     },
     statusBadge: {
@@ -260,20 +271,20 @@ const styles = {
         letterSpacing: '0.5px',
     },
     statusCollecting: {
-        background: 'linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%)',
-        color: '#4c51bf',
+        background: '#ebf8ff',
+        color: '#4299e1',
     },
     statusAnalyzing: {
-        background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
-        color: '#b45309',
+        background: '#fffff0',
+        color: '#d69e2e',
     },
     statusAnalyzed: {
-        background: 'linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%)',
-        color: '#047857',
+        background: '#f0fff4',
+        color: '#38a169',
     },
     statusClosed: {
-        background: 'linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%)',
-        color: '#6b7280',
+        background: '#edf2f7',
+        color: '#718096',
     },
     metaRow: {
         display: 'flex',
@@ -290,7 +301,7 @@ const styles = {
     metaLabel: {
         fontSize: '13px',
         color: '#718096',
-        fontWeight: '500',
+        fontWeight: '600',
     },
     metaValue: {
         fontSize: '15px',
@@ -313,7 +324,7 @@ const styles = {
     progressPercent: {
         fontSize: '14px',
         fontWeight: '700',
-        color: '#5a67d8',
+        color: '#4299e1',
     },
     progressBar: {
         height: '10px',
@@ -324,7 +335,7 @@ const styles = {
     },
     progressFill: {
         height: '100%',
-        background: 'linear-gradient(90deg, #667eea 0%, #764ba2 100%)',
+        background: '#4299e1', // Flat Blue
         borderRadius: '10px',
         transition: 'width 0.5s ease',
     },
@@ -342,13 +353,13 @@ const styles = {
     },
     reportButton: {
         padding: '14px 28px',
-        background: 'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)',
+        background: '#48bb78', // Flat Green
         color: 'white',
         borderRadius: '12px',
         fontSize: '15px',
         fontWeight: '600',
         textDecoration: 'none',
-        boxShadow: '0 4px 15px rgba(17, 153, 142, 0.35)',
+        boxShadow: '0 4px 6px rgba(72, 187, 120, 0.3)',
     },
     sectionCard: {
         maxWidth: '900px',
@@ -356,7 +367,7 @@ const styles = {
         backgroundColor: 'white',
         borderRadius: '20px',
         padding: '28px',
-        boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
+        boxShadow: '0 4px 6px rgba(0,0,0,0.05)',
     },
     sectionTitle: {
         fontSize: '18px',
@@ -374,17 +385,18 @@ const styles = {
         alignItems: 'center',
         gap: '12px',
         padding: '14px',
-        background: 'linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%)',
+        background: '#f8fafc',
         borderRadius: '12px',
         marginBottom: '10px',
         fontSize: '15px',
         color: '#2d3748',
+        border: '1px solid #e2e8f0',
     },
     goalNumber: {
         width: '28px',
         height: '28px',
         borderRadius: '50%',
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        background: '#4299e1', // Flat Blue
         color: 'white',
         display: 'flex',
         alignItems: 'center',
@@ -405,7 +417,7 @@ const styles = {
         gap: '16px',
     },
     memberCard: {
-        background: 'linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%)',
+        background: '#f8fafc',
         padding: '20px',
         borderRadius: '16px',
         border: '1px solid #e2e8f0',
@@ -420,7 +432,7 @@ const styles = {
         width: '48px',
         height: '48px',
         borderRadius: '50%',
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        background: '#4299e1', // Flat Blue
         color: 'white',
         display: 'flex',
         alignItems: 'center',
@@ -440,7 +452,7 @@ const styles = {
     memberRole: {
         fontSize: '13px',
         color: '#5a67d8',
-        fontWeight: '500',
+        fontWeight: '600',
     },
     memberEmail: {
         fontSize: '13px',
@@ -453,7 +465,7 @@ const styles = {
         fontSize: '12px',
         color: '#047857',
         fontWeight: '600',
-        background: 'linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%)',
+        background: '#f0fff4',
         padding: '6px 14px',
         borderRadius: '20px',
     },
@@ -462,7 +474,7 @@ const styles = {
         fontSize: '12px',
         color: '#b45309',
         fontWeight: '600',
-        background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
+        background: '#fffff0',
         padding: '6px 14px',
         borderRadius: '20px',
     },

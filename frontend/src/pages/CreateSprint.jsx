@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { ClipboardList, Target, Users, ArrowLeft } from 'lucide-react';
 import client from '../api/client';
 
 const TEAM_ROLES = [
@@ -117,7 +118,7 @@ const CreateSprint = () => {
         <div className="app-container" style={styles.container}>
             <div style={styles.header}>
                 <button onClick={() => navigate('/admin/dashboard')} style={styles.backButton}>
-                    ← Back to Dashboard
+                    <ArrowLeft size={16} style={{ marginRight: '6px' }} /> Back to Dashboard
                 </button>
                 <h2 style={styles.pageTitle}>Create New Sprint</h2>
             </div>
@@ -126,7 +127,9 @@ const CreateSprint = () => {
                 {/* Basic Info Section */}
                 <div style={styles.section}>
                     <div style={styles.sectionHeader}>
-                        <span style={styles.sectionIcon}>📋</span>
+                        <div style={styles.sectionIcon}>
+                            <ClipboardList size={24} color="#4299e1" />
+                        </div>
                         <h3 style={styles.sectionTitle}>Basic Information</h3>
                     </div>
 
@@ -184,7 +187,7 @@ const CreateSprint = () => {
                 {/* Sprint Goals Section */}
                 <div style={styles.section}>
                     <div style={styles.sectionHeader}>
-                        <span style={styles.sectionIcon}>🎯</span>
+                        <span style={styles.sectionIcon}><Target size={24} color="#4299e1" /></span>
                         <div>
                             <h3 style={styles.sectionTitle}>Sprint Goals</h3>
                             <p style={styles.sectionHint}>Define what the team aims to achieve</p>
@@ -216,7 +219,7 @@ const CreateSprint = () => {
                 {/* Team Members Section */}
                 <div style={styles.section}>
                     <div style={styles.sectionHeader}>
-                        <span style={styles.sectionIcon}>👥</span>
+                        <span style={styles.sectionIcon}><Users size={24} color="#4299e1" /></span>
                         <div>
                             <h3 style={styles.sectionTitle}>Team Members</h3>
                             <p style={styles.sectionHint}>Add members by email to give them access</p>
@@ -299,7 +302,7 @@ const styles = {
     container: {
         minHeight: '100vh',
         padding: '24px',
-        background: 'linear-gradient(180deg, #f0f4ff 0%, #fafbff 100%)',
+        background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)', // Match AuthPage
     },
     header: {
         maxWidth: '800px',
@@ -315,9 +318,10 @@ const styles = {
         borderRadius: '10px',
         cursor: 'pointer',
         fontSize: '14px',
-        fontWeight: '500',
+        fontWeight: '600',
         color: '#4a5568',
         boxShadow: '0 2px 4px rgba(0,0,0,0.04)',
+        transition: 'all 0.2s',
     },
     pageTitle: {
         fontSize: '28px',
@@ -336,7 +340,7 @@ const styles = {
         backgroundColor: 'white',
         borderRadius: '20px',
         padding: '28px',
-        boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
+        boxShadow: '0 4px 6px rgba(0,0,0,0.05)',
     },
     sectionHeader: {
         display: 'flex',
@@ -388,22 +392,22 @@ const styles = {
         width: '100%',
         padding: '14px 16px',
         fontSize: '15px',
-        border: '2px solid #e2e8f0',
+        border: '1px solid #e2e8f0',
         borderRadius: '10px',
         outline: 'none',
         boxSizing: 'border-box',
         color: '#2d3748',
-        background: '#fafbff',
+        background: 'white',
         transition: 'border-color 0.2s',
     },
     select: {
         width: '100%',
         padding: '14px 16px',
         fontSize: '15px',
-        border: '2px solid #e2e8f0',
+        border: '1px solid #e2e8f0',
         borderRadius: '10px',
         outline: 'none',
-        backgroundColor: '#fafbff',
+        backgroundColor: 'white',
         boxSizing: 'border-box',
         color: '#2d3748',
     },
@@ -417,7 +421,7 @@ const styles = {
         width: '28px',
         height: '28px',
         borderRadius: '50%',
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        background: '#4299e1', // Flat Blue
         color: 'white',
         display: 'flex',
         alignItems: 'center',
@@ -430,14 +434,14 @@ const styles = {
         flex: 1,
         padding: '12px 16px',
         fontSize: '15px',
-        border: '2px solid #e2e8f0',
+        border: '1px solid #e2e8f0',
         borderRadius: '10px',
         outline: 'none',
         color: '#2d3748',
-        background: '#fafbff',
+        background: 'white',
     },
     memberCard: {
-        background: 'linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%)',
+        background: '#f8fafc',
         borderRadius: '14px',
         padding: '18px',
         marginBottom: '14px',
@@ -452,8 +456,8 @@ const styles = {
     memberBadge: {
         fontSize: '12px',
         fontWeight: '700',
-        color: '#5a67d8',
-        background: 'linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%)',
+        color: '#4299e1',
+        background: '#ebf8ff', // Light Blue
         padding: '6px 14px',
         borderRadius: '20px',
     },
@@ -469,7 +473,7 @@ const styles = {
     memberInput: {
         padding: '10px 12px',
         fontSize: '14px',
-        border: '2px solid #e2e8f0',
+        border: '1px solid #e2e8f0',
         borderRadius: '8px',
         outline: 'none',
         color: '#2d3748',
@@ -478,7 +482,7 @@ const styles = {
     memberSelect: {
         padding: '10px 12px',
         fontSize: '14px',
-        border: '2px solid #e2e8f0',
+        border: '1px solid #e2e8f0',
         borderRadius: '8px',
         outline: 'none',
         backgroundColor: 'white',
@@ -488,9 +492,9 @@ const styles = {
         padding: '14px 20px',
         fontSize: '14px',
         fontWeight: '600',
-        background: 'linear-gradient(135deg, #f0f4ff 0%, #e8ecff 100%)',
-        color: '#5a67d8',
-        border: '2px dashed #c3dafe',
+        background: '#ebf8ff', // Light Blue
+        color: '#4299e1',     // Flat Blue
+        border: '2px dashed #bee3f8',
         borderRadius: '12px',
         cursor: 'pointer',
         width: '100%',
@@ -500,9 +504,9 @@ const styles = {
         width: '32px',
         height: '32px',
         borderRadius: '8px',
-        background: '#fed7d7',
+        background: '#fff5f5',
         color: '#c53030',
-        border: 'none',
+        border: '1px solid #fed7d7',
         cursor: 'pointer',
         fontSize: '14px',
         fontWeight: '600',
@@ -510,7 +514,7 @@ const styles = {
     removeMemberBtn: {
         padding: '6px 14px',
         fontSize: '12px',
-        backgroundColor: 'transparent',
+        backgroundColor: 'white',
         color: '#e53e3e',
         border: '1px solid #feb2b2',
         borderRadius: '6px',
@@ -525,10 +529,10 @@ const styles = {
     cancelButton: {
         padding: '16px 32px',
         fontSize: '15px',
-        fontWeight: '500',
+        fontWeight: '600',
         backgroundColor: 'white',
         color: '#4a5568',
-        border: '2px solid #e2e8f0',
+        border: '1px solid #e2e8f0',
         borderRadius: '12px',
         cursor: 'pointer',
     },
@@ -536,20 +540,22 @@ const styles = {
         padding: '16px 32px',
         fontSize: '15px',
         fontWeight: '700',
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        background: '#4299e1', // Flat Blue
         color: 'white',
         border: 'none',
         borderRadius: '12px',
         cursor: 'pointer',
-        boxShadow: '0 6px 20px rgba(102, 126, 234, 0.35)',
+        boxShadow: '0 4px 6px rgba(66, 153, 225, 0.3)',
+        transition: 'transform 0.2s',
     },
     error: {
         padding: '16px',
-        background: 'linear-gradient(135deg, #fff5f5 0%, #fed7d7 100%)',
+        background: '#fff5f5',
         color: '#c53030',
         borderRadius: '12px',
         fontSize: '14px',
         border: '1px solid #feb2b2',
+        marginBottom: '20px',
     },
 };
 

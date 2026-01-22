@@ -3,6 +3,8 @@ import json
 import re
 import os
 from typing import List, Dict
+import google.api_core.exceptions
+import time
 
 class GeminiService:
     """Service for all Gemini AI operations"""
@@ -16,19 +18,14 @@ class GeminiService:
             "temperature": 0.7,
         }
     
+
+
     def conduct_interview(self, conversation_history: List[Dict], user_message: str,
                           member_name: str = "Team Member", member_role: str = "Team Member",
                           sprint_context: Dict = None) -> str:
         """
         Continue the retrospective interview conversation.
         Returns the AI's response as a string.
-        
-        Args:
-            conversation_history: Previous messages in the conversation
-            user_message: The latest user message
-            member_name: Name of the team member
-            member_role: Role of the team member (Developer, QA, etc.)
-            sprint_context: Sprint details including goals, outcomes, and project info
         """
         # Load interviewer prompt template
         system_prompt = self._load_prompt('interviewer.txt')
@@ -61,16 +58,42 @@ User: {user_message}
 Respond naturally and conversationally. Keep your response to 2-3 sentences maximum. 
 Ask relevant follow-up questions based on their role when appropriate."""
         
-        try:
-            # Use plain text config for conversational responses
-            text_config = {
-                "temperature": 0.7,
-            }
-            response = self.model.generate_content(full_prompt, generation_config=text_config)
-            return self._clean_response(response.text)
-        except Exception as e:
-            print(f"Gemini API error: {e}")
-            return "I apologize, but I'm having trouble processing your response. Could you please try again?"
+        # Retry logic for transient errors
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                # Use plain text config for conversational responses
+                text_config = {
+                    "temperature": 0.7,
+                }
+                response = self.model.generate_content(full_prompt, generation_config=text_config)
+                
+                # Check for safety blocks or other issues that don't raise exceptions but return empty/invalid response
+                if response.prompt_feedback and response.prompt_feedback.block_reason:
+                    print(f"Gemini Blocked Response: {response.prompt_feedback.block_reason}")
+                    return "I apologize, but I cannot respond to that specific message due to safety guidelines. Could we please rephrase or move to the next topic?"
+
+                return self._clean_response(response.text)
+                
+            except google.api_core.exceptions.ResourceExhausted as e:
+                print(f"Gemini Rate Limit Hit: {e}")
+                return "I'm receiving a lot of messages right now. Please wait a moment (about 30 seconds) and try again."
+                
+            except google.api_core.exceptions.ServiceUnavailable as e:
+                print(f"Gemini Service Unavailable (Attempt {attempt+1}/{max_retries}): {e}")
+                if attempt < max_retries - 1:
+                    time.sleep(2 * (attempt + 1)) # Exponential backoff
+                    continue
+                return "The AI service is currently experiencing high traffic. Please try again in a few moments."
+                
+            except Exception as e:
+                print(f"Gemini API error (Attempt {attempt+1}/{max_retries}): {e}")
+                if attempt < max_retries - 1:
+                    time.sleep(1)
+                    continue
+                return "I apologize, but I'm having trouble processing your response due to a technical issue. Could you please try again?"
+                
+        return "I apologize, but I'm unable to connect to the AI service right now. Please try again later."
     
     def _build_sprint_context(self, sprint_context: Dict) -> str:
         """Build sprint context section for the prompt"""

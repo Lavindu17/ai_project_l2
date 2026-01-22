@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Folder, Lightbulb, ArrowLeft } from 'lucide-react';
 import client from '../api/client';
 
 const CreateProject = () => {
@@ -42,13 +43,15 @@ const CreateProject = () => {
                     onClick={() => navigate('/admin/dashboard')}
                     style={styles.backButton}
                 >
-                    ← Back to Dashboard
+                    <ArrowLeft size={16} style={{ marginRight: '6px' }} /> Back to Dashboard
                 </button>
             </div>
 
             <div style={styles.formWrapper}>
                 <div style={styles.formHeader}>
-                    <div style={styles.iconWrapper}>📁</div>
+                    <div style={styles.iconWrapper}>
+                        <Folder size={32} color="#4299e1" />
+                    </div>
                     <h2 style={styles.title}>Create New Project</h2>
                     <p style={styles.subtitle}>Organize your sprints under a project</p>
                 </div>
@@ -99,7 +102,9 @@ const CreateProject = () => {
             </div>
 
             <div style={styles.infoBox}>
-                <div style={styles.infoIcon}>💡</div>
+                <div style={styles.infoIcon}>
+                    <Lightbulb size={24} color="#4299e1" />
+                </div>
                 <div>
                     <h4 style={styles.infoTitle}>Why create projects?</h4>
                     <p style={styles.infoText}>
@@ -116,7 +121,7 @@ const styles = {
     container: {
         minHeight: '100vh',
         padding: '24px',
-        background: 'linear-gradient(180deg, #f0f4ff 0%, #fafbff 100%)',
+        background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)', // Match AuthPage
     },
     header: {
         maxWidth: '640px',
@@ -129,7 +134,7 @@ const styles = {
         borderRadius: '10px',
         cursor: 'pointer',
         fontSize: '14px',
-        fontWeight: '500',
+        fontWeight: '600',
         color: '#4a5568',
         transition: 'all 0.2s',
         boxShadow: '0 2px 4px rgba(0,0,0,0.04)',
@@ -184,26 +189,26 @@ const styles = {
         width: '100%',
         padding: '14px 18px',
         fontSize: '16px',
-        border: '2px solid #e2e8f0',
+        border: '1px solid #e2e8f0',
         borderRadius: '12px',
         outline: 'none',
         transition: 'all 0.2s',
         boxSizing: 'border-box',
         color: '#2d3748',
-        background: '#fafbff',
+        background: 'white',
     },
     textarea: {
         width: '100%',
         padding: '14px 18px',
         fontSize: '16px',
-        border: '2px solid #e2e8f0',
+        border: '1px solid #e2e8f0',
         borderRadius: '12px',
         outline: 'none',
         resize: 'vertical',
         fontFamily: 'inherit',
         boxSizing: 'border-box',
         color: '#2d3748',
-        background: '#fafbff',
+        background: 'white',
     },
     actions: {
         display: 'flex',
@@ -214,10 +219,10 @@ const styles = {
     cancelButton: {
         padding: '14px 28px',
         fontSize: '15px',
-        fontWeight: '500',
-        backgroundColor: '#f7fafc',
+        fontWeight: '600',
+        backgroundColor: 'white',
         color: '#4a5568',
-        border: '2px solid #e2e8f0',
+        border: '1px solid #e2e8f0',
         borderRadius: '12px',
         cursor: 'pointer',
         transition: 'all 0.2s',
@@ -226,17 +231,17 @@ const styles = {
         padding: '14px 28px',
         fontSize: '15px',
         fontWeight: '600',
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        background: '#4299e1', // Flat Blue
         color: 'white',
         border: 'none',
         borderRadius: '12px',
         cursor: 'pointer',
-        boxShadow: '0 4px 15px rgba(102, 126, 234, 0.35)',
+        boxShadow: '0 4px 6px rgba(66, 153, 225, 0.3)',
         transition: 'transform 0.2s',
     },
     error: {
         padding: '14px 18px',
-        background: 'linear-gradient(135deg, #fff5f5 0%, #fed7d7 100%)',
+        background: '#fff5f5',
         color: '#c53030',
         borderRadius: '12px',
         fontSize: '14px',
@@ -246,9 +251,9 @@ const styles = {
         maxWidth: '640px',
         margin: '24px auto 0',
         padding: '20px 24px',
-        background: 'linear-gradient(135deg, #ebf8ff 0%, #e6fffa 100%)',
+        background: '#ebf8ff', // Flat Light Blue
         borderRadius: '16px',
-        border: '1px solid #81e6d9',
+        border: '1px solid #bee3f8',
         display: 'flex',
         gap: '16px',
         alignItems: 'flex-start',
@@ -260,12 +265,12 @@ const styles = {
     infoTitle: {
         fontSize: '15px',
         fontWeight: '600',
-        color: '#234e52',
+        color: '#2c5282',
         marginBottom: '4px',
     },
     infoText: {
         fontSize: '14px',
-        color: '#285e61',
+        color: '#2a4365',
         margin: 0,
         lineHeight: '1.5',
     },

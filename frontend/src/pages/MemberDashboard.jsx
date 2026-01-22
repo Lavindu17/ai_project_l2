@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Calendar, Users, LogOut, PlayCircle, Clock } from 'lucide-react';
 import client from '../api/client';
 import { supabase } from '../lib/supabase';
 
@@ -78,7 +79,9 @@ const MemberDashboard = () => {
                     <h1 style={styles.title}>My Retrospectives</h1>
                     <p style={styles.subtitle}>Welcome, {user?.user_metadata?.full_name || user?.email}</p>
                 </div>
-                <button onClick={handleLogout} style={styles.logoutButton}>Sign Out</button>
+                <button onClick={handleLogout} style={styles.logoutButton}>
+                    <LogOut size={16} style={{ marginRight: '6px' }} /> Sign Out
+                </button>
             </header>
 
             <main style={styles.main}>
@@ -95,14 +98,14 @@ const MemberDashboard = () => {
                                         <span style={styles.badgeActive}>Active</span>
                                     </div>
                                     <div style={styles.cardMeta}>
-                                        <span>📅 {formatDate(sprint.end_date)}</span>
-                                        <span>👥 {sprint.team_size || '0'} members</span>
+                                        <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Calendar size={14} /> {formatDate(sprint.end_date)}</span>
+                                        <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Users size={14} /> {sprint.team_size || '0'} members</span>
                                     </div>
                                     <button
                                         onClick={() => handleStartRetro(sprint.id)}
                                         style={styles.actionButton}
                                     >
-                                        Start Retrospective
+                                        <PlayCircle size={16} style={{ marginRight: '6px' }} /> Start Retrospective
                                     </button>
                                 </div>
                             ))}
@@ -121,7 +124,7 @@ const MemberDashboard = () => {
                                         <span style={styles.badgeClosed}>{sprint.status}</span>
                                     </div>
                                     <div style={styles.cardMeta}>
-                                        <span>Ended {formatDate(sprint.end_date)}</span>
+                                        <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Clock size={14} /> Ended {formatDate(sprint.end_date)}</span>
                                     </div>
                                 </div>
                             ))}
@@ -136,7 +139,7 @@ const MemberDashboard = () => {
 const styles = {
     container: {
         minHeight: '100vh',
-        background: '#f7fafc',
+        background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)', // Match AuthPage
         padding: '30px'
     },
     loading: {
@@ -156,18 +159,23 @@ const styles = {
     },
     title: {
         color: '#1a202c',
-        marginBottom: '5px'
+        marginBottom: '5px',
+        fontSize: '32px',
+        fontWeight: '800'
     },
     subtitle: {
-        color: '#718096'
+        color: '#718096',
+        fontSize: '16px'
     },
     logoutButton: {
-        padding: '8px 16px',
+        padding: '10px 18px',
         background: 'white',
         border: '1px solid #e2e8f0',
-        borderRadius: '6px',
+        borderRadius: '8px',
         color: '#4a5568',
-        cursor: 'pointer'
+        fontWeight: '600',
+        cursor: 'pointer',
+        transition: 'all 0.2s'
     },
     main: {
         maxWidth: '1000px',
@@ -178,6 +186,7 @@ const styles = {
     },
     sectionTitle: {
         fontSize: '20px',
+        fontWeight: '700',
         color: '#2d3748',
         marginBottom: '20px',
         borderBottom: '2px solid #e2e8f0',
@@ -190,57 +199,67 @@ const styles = {
     },
     card: {
         background: 'white',
-        padding: '20px',
-        borderRadius: '12px',
+        padding: '24px',
+        borderRadius: '16px',
         boxShadow: '0 4px 6px rgba(0,0,0,0.05)',
         transition: 'transform 0.2s',
     },
     cardHeader: {
         display: 'flex',
         justifyContent: 'space-between',
-        marginBottom: '15px'
+        alignItems: 'center',
+        marginBottom: '16px'
     },
     cardTitle: {
         fontSize: '18px',
-        fontWeight: '600',
-        color: '#2d3748'
+        fontWeight: '700',
+        color: '#2d3748',
+        margin: 0
     },
     cardMeta: {
         display: 'flex',
         gap: '15px',
         color: '#718096',
-        fontSize: '14px',
+        fontSize: '13px',
         marginBottom: '20px'
     },
     badgeActive: {
-        padding: '4px 8px',
-        background: '#c6f6d5',
-        color: '#22543d',
-        borderRadius: '4px',
+        padding: '5px 12px',
+        background: '#ebf8ff', // Light Blue
+        color: '#4299e1',     // Flat Blue
+        borderRadius: '20px',
         fontSize: '12px',
-        fontWeight: 'bold'
+        fontWeight: '700',
+        textTransform: 'uppercase'
     },
     badgeClosed: {
-        padding: '4px 8px',
+        padding: '5px 12px',
         background: '#edf2f7',
-        color: '#4a5568',
-        borderRadius: '4px',
-        fontSize: '12px'
+        color: '#718096',
+        borderRadius: '20px',
+        fontSize: '12px',
+        fontWeight: '600',
+        textTransform: 'uppercase'
     },
     actionButton: {
         width: '100%',
         padding: '12px',
-        background: '#4299e1',
+        background: '#4299e1', // Flat Blue
         color: 'white',
         border: 'none',
-        borderRadius: '8px',
+        borderRadius: '10px',
         fontWeight: '600',
         cursor: 'pointer',
-        transition: 'background 0.2s'
+        transition: 'background 0.2s',
+        boxShadow: '0 2px 4px rgba(66, 153, 225, 0.3)'
     },
     emptyText: {
         color: '#718096',
-        fontStyle: 'italic'
+        fontStyle: 'italic',
+        background: 'rgba(255,255,255,0.5)',
+        padding: '20px',
+        borderRadius: '10px',
+        textAlign: 'center'
     }
 };
 

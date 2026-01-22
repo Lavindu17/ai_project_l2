@@ -1,5 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import {
+    Users,
+    Calendar,
+    BarChart2,
+    Plus,
+    LogOut,
+    LayoutDashboard,
+    ChevronDown,
+    ChevronRight,
+    Folder
+} from 'lucide-react';
 import client from '../api/client';
 import '../styles/dashboard.css';
 
@@ -87,19 +98,19 @@ const AdminDashboard = () => {
                 </span>
             </div>
             <div style={styles.sprintMeta}>
-                <span>📅 {sprint.start_date} → {sprint.end_date}</span>
-                <span>👥 {sprint.team_size || 0} members</span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Calendar size={14} /> {sprint.start_date} → {sprint.end_date}</span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Users size={14} /> {sprint.team_size || 0} members</span>
             </div>
             <div style={styles.sprintActions}>
                 <button
                     onClick={() => navigate(`/admin/sprint/${sprint.id}`)}
                     style={styles.viewTeamButton}
                 >
-                    👥 View Team
+                    <Users size={14} style={{ marginRight: '6px' }} /> View Team
                 </button>
                 {sprint.status === 'analyzed' && (
                     <Link to={`/admin/sprint/${sprint.id}/report`} style={styles.reportButton}>
-                        📊 Report
+                        <BarChart2 size={14} style={{ marginRight: '6px' }} /> Report
                     </Link>
                 )}
             </div>
@@ -118,13 +129,14 @@ const AdminDashboard = () => {
                     <p style={styles.headerSubtitle}>Manage your projects and retrospectives</p>
                 </div>
                 <div style={styles.headerActions}>
-
-                    <button onClick={handleLogout} style={styles.logoutButton}>Logout</button>
+                    <button onClick={handleLogout} style={styles.logoutButton}>
+                        <LogOut size={16} />
+                    </button>
                     <Link to="/admin/project/create" style={styles.secondaryButton}>
-                        + Project
+                        <Plus size={16} style={{ marginRight: '4px' }} /> Project
                     </Link>
                     <Link to="/admin/sprint/create" style={styles.primaryButton}>
-                        + New Sprint
+                        <Plus size={16} style={{ marginRight: '4px' }} /> New Sprint
                     </Link>
                 </div>
             </header>
@@ -213,20 +225,20 @@ const AdminDashboard = () => {
 const styles = {
     pageContainer: {
         minHeight: '100vh',
-        background: 'linear-gradient(180deg, #f0f4ff 0%, #fafbff 100%)',
+        background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)', // Match AuthPage
         padding: '24px',
     },
     notification: {
         position: 'fixed',
         top: '24px',
         right: '24px',
-        background: 'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)',
+        background: '#4299e1', // Flat Blue
         color: 'white',
         padding: '14px 28px',
         borderRadius: '12px',
         zIndex: 1000,
         fontWeight: '600',
-        boxShadow: '0 8px 25px rgba(17, 153, 142, 0.35)',
+        boxShadow: '0 4px 12px rgba(66, 153, 225, 0.4)',
         fontSize: '14px',
     },
     header: {
@@ -257,32 +269,37 @@ const styles = {
         padding: '12px 20px',
         backgroundColor: 'white',
         color: '#4a5568',
-        border: '2px solid #e2e8f0',
+        border: '1px solid #e2e8f0', // Thinner border
         borderRadius: '10px',
         fontSize: '14px',
-        fontWeight: '500',
+        fontWeight: '600', // Match others
         cursor: 'pointer',
+        transition: 'all 0.2s',
     },
     secondaryButton: {
         padding: '12px 20px',
-        background: 'linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%)',
+        background: 'white', // Flat white
         color: '#4a5568',
-        border: '2px solid #e2e8f0',
+        border: '1px solid #e2e8f0',
         borderRadius: '10px',
         fontSize: '14px',
         fontWeight: '600',
         textDecoration: 'none',
+        transition: 'all 0.2s',
+        display: 'inline-block', // Ensure padding works
     },
     primaryButton: {
         padding: '12px 24px',
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        background: '#4299e1', // Flat Blue
         color: 'white',
         border: 'none',
         borderRadius: '10px',
         fontSize: '14px',
         fontWeight: '600',
         textDecoration: 'none',
-        boxShadow: '0 4px 15px rgba(102, 126, 234, 0.35)',
+        boxShadow: '0 4px 6px rgba(66, 153, 225, 0.3)',
+        transition: 'background 0.2s',
+        display: 'inline-block',
     },
     loadingContainer: {
         textAlign: 'center',
@@ -315,7 +332,7 @@ const styles = {
     projectCard: {
         backgroundColor: 'white',
         borderRadius: '18px',
-        boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
+        boxShadow: '0 4px 6px rgba(0,0,0,0.05)', // Softer shadow
         overflow: 'hidden',
     },
     projectHeader: {
@@ -349,8 +366,8 @@ const styles = {
     },
     sprintCount: {
         fontSize: '13px',
-        color: '#5a67d8',
-        background: 'linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%)',
+        color: '#4299e1', // Blue text
+        background: '#ebf8ff', // Light blue bg
         padding: '6px 14px',
         borderRadius: '20px',
         fontWeight: '600',
@@ -372,7 +389,7 @@ const styles = {
         gap: '16px',
     },
     sprintCard: {
-        backgroundColor: '#f7fafc',
+        backgroundColor: '#f8fafc', // Very light gray/blue
         borderRadius: '14px',
         padding: '20px',
         border: '1px solid #e2e8f0',
@@ -398,20 +415,20 @@ const styles = {
         letterSpacing: '0.5px',
     },
     statusCollecting: {
-        background: 'linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%)',
-        color: '#4c51bf',
+        background: '#ebf8ff',
+        color: '#4299e1',
     },
     statusAnalyzing: {
-        background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
-        color: '#b45309',
+        background: '#fffff0',
+        color: '#d69e2e',
     },
     statusAnalyzed: {
-        background: 'linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%)',
-        color: '#047857',
+        background: '#f0fff4',
+        color: '#38a169',
     },
     statusClosed: {
-        background: 'linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%)',
-        color: '#6b7280',
+        background: '#edf2f7',
+        color: '#718096',
     },
     sprintMeta: {
         display: 'flex',
@@ -426,23 +443,26 @@ const styles = {
     },
     viewTeamButton: {
         padding: '10px 18px',
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        background: '#4299e1', // Flat Blue
         color: 'white',
         border: 'none',
         borderRadius: '10px',
         fontSize: '13px',
         fontWeight: '600',
         cursor: 'pointer',
-        boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)',
+        boxShadow: '0 2px 4px rgba(66, 153, 225, 0.3)',
+        transition: 'background 0.2s',
     },
     reportButton: {
         padding: '10px 18px',
-        background: 'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)',
+        background: '#48bb78', // Flat Green
         color: 'white',
         borderRadius: '10px',
         fontSize: '13px',
         fontWeight: '600',
         textDecoration: 'none',
+        border: 'none',
+        boxShadow: '0 2px 4px rgba(72, 187, 120, 0.3)',
     },
     emptyState: {
         textAlign: 'center',

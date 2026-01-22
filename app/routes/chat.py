@@ -366,19 +366,6 @@ def get_current_session():
         print("DEBUG: Sprint context not found")
         return jsonify({'active': False}), 200
         
-    return jsonify({
-        'active': True,
-        'session_token': session_token,
-        'history': history,
-        'sprint': {
-            'id': sprint_context['id'],
-            'name': sprint_context.get('name'),
-            'start_date': sprint_context.get('start_date'),
-            'end_date': sprint_context.get('end_date'),
-            'goals': sprint_context.get('goals', []),
-            'outcomes': sprint_context.get('outcomes'),
-            'project': sprint_context.get('project')
-        },
     # Get member details
     member_id = session.get('member_id')
     members = db.get_team_members(sprint_id)

@@ -316,49 +316,84 @@ Return ONLY the JSON object, no other text."""
     
     def _extract_themes(self, responses: List[Dict]) -> Dict:
         """Extract common themes from responses"""
+        print(f"\n=== THEME EXTRACTION START ===")
+        print(f"Number of responses to analyze: {len(responses)}")
+        
         prompt_template = self._load_prompt('theme_extraction.txt')
         
         # Format responses
         formatted_responses = self._format_responses_for_analysis(responses)
+        print(f"Formatted responses preview: {formatted_responses[:500]}...")
         
         prompt = prompt_template.format(
             team_size=len(responses),
             summaries=formatted_responses
         )
+        print(f"Prompt preview: {prompt[:300]}...")
         
         try:
+            print(f"Calling Gemini model: {self.model.model_name}")
             response = self.model.generate_content(
                 prompt,
                 generation_config=self.generation_config
             )
             
+            print(f"Raw Gemini response: {response.text[:1000] if response.text else 'EMPTY'}")
+            
             cleaned_text = self._clean_json_string(response.text)
-            return json.loads(cleaned_text)
+            print(f"Cleaned text: {cleaned_text[:500]}...")
+            
+            result = json.loads(cleaned_text)
+            print(f"Parsed themes count: {len(result.get('themes', []))}")
+            print(f"=== THEME EXTRACTION END ===\n")
+            return result
         except json.JSONDecodeError as e:
             print(f"JSON parsing error: {e}")
-            print(f"Raw response: {response.text}")
+            print(f"Raw response text: {response.text if 'response' in dir() else 'No response'}")
+            print(f"=== THEME EXTRACTION FAILED (JSON) ===\n")
             return {"themes": []}
         except Exception as e:
-            print(f"Theme extraction error: {e}")
+            print(f"Theme extraction error: {type(e).__name__}: {e}")
+            import traceback
+            traceback.print_exc()
+            print(f"=== THEME EXTRACTION FAILED ===\n")
             return {"themes": []}
     
     def _generate_recommendations(self, themes: List[Dict]) -> Dict:
         """Generate recommendations based on themes"""
+        print(f"\n=== RECOMMENDATIONS START ===")
+        print(f"Number of themes input: {len(themes)}")
+        
+        if not themes:
+            print("WARNING: No themes provided, skipping recommendations")
+            print(f"=== RECOMMENDATIONS SKIPPED ===\n")
+            return {"recommendations": []}
+        
         prompt_template = self._load_prompt('recommendations.txt')
         
         themes_text = json.dumps(themes, indent=2)
         prompt = prompt_template.format(themes=themes_text)
+        print(f"Prompt preview: {prompt[:300]}...")
         
         try:
+            print(f"Calling Gemini for recommendations...")
             response = self.model.generate_content(
                 prompt,
                 generation_config=self.generation_config
             )
             
+            print(f"Raw Gemini response: {response.text[:1000] if response.text else 'EMPTY'}")
+            
             cleaned_text = self._clean_json_string(response.text)
-            return json.loads(cleaned_text)
+            result = json.loads(cleaned_text)
+            print(f"Parsed recommendations count: {len(result.get('recommendations', []))}")
+            print(f"=== RECOMMENDATIONS END ===\n")
+            return result
         except Exception as e:
-            print(f"Recommendations generation error: {e}")
+            print(f"Recommendations generation error: {type(e).__name__}: {e}")
+            import traceback
+            traceback.print_exc()
+            print(f"=== RECOMMENDATIONS FAILED ===\n")
             return {"recommendations": []}
     
     def _analyze_sentiment(self, responses: List[Dict]) -> Dict:

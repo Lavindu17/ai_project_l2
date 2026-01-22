@@ -1,0 +1,231 @@
+# Sprint Retrospective System - Full User Flow Overview
+
+## System Architecture
+
+```
+┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
+│   React Frontend│────▶│   Flask Backend │────▶│    Supabase     │
+│   (Vite)        │     │   (Python)      │     │   (Postgres)    │
+└─────────────────┘     └─────────────────┘     └─────────────────┘
+                              │
+                    ┌─────────┼─────────┐
+                    ▼                   ▼
+              ┌──────────┐       ┌──────────┐
+              │   Groq   │       │  Gemini  │
+              │ (Chat)   │       │(Analysis)│
+              └──────────┘       └──────────┘
+```
+
+---
+
+## User Roles
+
+1. **Admin/Scrum Master** - Creates projects, sprints, manages team, analyzes results
+2. **Team Member** - Participates in retrospective chat, submits feedback
+
+---
+
+## Complete User Flow
+
+### FLOW 1: Admin Creates a Sprint
+
+```
+Admin Login
+    │
+    ▼
+Admin Dashboard
+    │
+    ├──▶ Create Project (optional)
+    │       └── Name, Description
+    │
+    ▼
+Create Sprint
+    │
+    ├── Sprint Name
+    ├── Start/End Date
+    ├── Project (optional)
+    ├── Goals (list)
+    └── Team Members
+           └── Name, Role, Email
+    │
+    ▼
+Sprint Created!
+    │
+    ├── Each member gets unique access code
+    └── Sprint status = "collecting"
+```
+
+---
+
+### FLOW 2: Team Member Participates
+
+```
+Member logs in (email/password)
+    │
+    ▼
+Member Dashboard
+    │
+    ├── Automatically shows all sprints where member's
+    │   email matches a team_member record
+    │
+    ▼
+Click on a Sprint to participate
+    │
+    ▼
+Start Chat Session (if not already started)
+    │
+    ▼
+Chat Interface Opens
+    │
+    ▼
+┌─────────────────────────────────────────────┐
+│            GROQ-POWERED CHAT                │
+│                                             │
+│  AI: "Hi [Name]! Let's discuss the sprint" │
+│                                             │
+│  User: Types response                       │
+│           │                                 │
+│           ▼                                 │
+│  POST /api/chat/message                     │
+│           │                                 │
+│           ▼                                 │
+│  Groq generates response (FAST ~200ms)     │
+│           │                                 │
+│           ▼                                 │
+│  AI: Follow-up question                     │
+│                                             │
+│  ... conversation continues ...             │
+│                                             │
+│  AI: "[READY_TO_SUBMIT]" when enough info   │
+│                                             │
+└─────────────────────────────────────────────┘
+    │
+    ▼
+User clicks "Submit"
+    │
+    ▼
+┌─────────────────────────────────────────────┐
+│         GEMINI SUMMARIZATION                │
+│                                             │
+│  Takes full conversation and extracts:      │
+│  - went_well: ["item 1", "item 2"]          │
+│  - went_poorly: ["issue 1", "issue 2"]      │
+│  - ideas: ["suggestion 1"]                  │
+│  - risks: ["risk 1"]                        │
+│  - sentiment: "positive" | "negative"       │
+│                                             │
+└─────────────────────────────────────────────┘
+    │
+    ▼
+Response saved to `responses` table
+    │
+    ▼
+Member marked as "submitted"
+    │
+    ▼
+Thank You Page
+```
+
+---
+
+### FLOW 3: Admin Analyzes Sprint
+
+```
+Admin Dashboard
+    │
+    ▼
+View Sprint Details
+    │
+    ├── See: X of Y members submitted
+    │
+    ▼
+Click "Analyze Sprint"
+    │
+    ▼
+┌─────────────────────────────────────────────┐
+│      GEMINI PATTERN RECOGNITION             │
+│                                             │
+│  Step 1: Fetch all summaries                │
+│                                             │
+│  Step 2: Extract Themes                     │
+│  ┌─────────────────────────────────────┐    │
+│  │ Theme: "Deployment Issues"          │    │
+│  │ Category: "Critical Issue"          │    │
+│  │ Frequency: "3 out of 5 members"     │    │
+│  │ Impact: "Delayed releases"          │    │
+│  │ Quotes: ["paraphrased feedback"]    │    │
+│  └─────────────────────────────────────┘    │
+│                                             │
+│  Step 3: Generate Recommendations           │
+│  ┌─────────────────────────────────────┐    │
+│  │ Theme: "Deployment Issues"          │    │
+│  │ Priority: "High"                    │    │
+│  │ Actions:                            │    │
+│  │   - "Implement CI/CD pipeline"      │    │
+│  │   - "Add staging environment"       │    │
+│  └─────────────────────────────────────┘    │
+│                                             │
+└─────────────────────────────────────────────┘
+    │
+    ▼
+Report saved to `analysis_reports` table
+    │
+    ▼
+Sprint status = "analyzed"
+    │
+    ▼
+Admin views Report
+    │
+    ├── Themes (grouped by category)
+    ├── Recommendations (with priority)
+    ├── Sentiment overview
+    └── Action items can be created
+```
+
+---
+
+## Database Tables
+
+| Table | Purpose |
+|-------|---------|
+| `projects` | Container for multiple sprints |
+| `sprints` | Individual retrospectives |
+| `team_members` | People in each sprint |
+| `conversation_sessions` | Active chat sessions |
+| `responses` | Submitted feedback + summaries |
+| `analysis_reports` | Themes + recommendations |
+| `action_items` | Trackable follow-up tasks |
+
+---
+
+## API Endpoints
+
+### Chat Flow
+- `POST /api/chat/start-session` - Start chat session
+- `POST /api/chat/message` - Send message, get AI response
+- `POST /api/response/submit` - Submit completed conversation
+
+### Analysis Flow
+- `POST /api/sprint/<id>/analyze` - Trigger analysis
+- `GET /api/sprint/<id>/report` - Get analysis report
+
+---
+
+## AI Provider Split
+
+| Task | Provider | Why |
+|------|----------|-----|
+| Live Chat | **Groq** | Fast (~200ms latency) |
+| Summarization | **Gemini** | Better at structured extraction |
+| Theme Analysis | **Gemini** | Better at pattern recognition |
+| Recommendations | **Gemini** | Better reasoning |
+
+---
+
+## What Happens When (Data Flow)
+
+1. **Member chats** → Messages stored in `conversation_sessions.conversation_history` (JSONB)
+2. **Member submits** → Summary generated → Saved to `responses.summary_data` (JSONB)
+3. **Admin analyzes** → All summaries aggregated → Patterns extracted → Saved to `analysis_reports`
+
+The key insight: Each member's chat becomes an individual summary, then all summaries are combined to find **team-wide patterns**.

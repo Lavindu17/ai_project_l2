@@ -419,16 +419,35 @@ Return format: {{"score": 0.5}}"""
             return 0.0
     
     def _format_responses_for_analysis(self, responses: List[Dict]) -> str:
-        """Format responses for analysis prompts"""
+        """Format responses for analysis prompts - uses summary_data when available"""
         formatted = ""
         for i, resp in enumerate(responses, 1):
             formatted += f"\n[Response {i}]\n"
             formatted += f"User: {resp.get('user_name', 'Anonymous')}\n"
             
-            conversation = resp.get('conversation', [])
-            user_messages = [msg['content'] for msg in conversation if msg['role'] == 'user']
-            formatted += f"Feedback: {' '.join(user_messages)}\n"
+            # Prefer summary_data (structured) over raw conversation
+            summary = resp.get('summary_data')
+            if summary and isinstance(summary, dict):
+                # Use structured summary data
+                if summary.get('went_well'):
+                    formatted += f"What went well: {', '.join(summary.get('went_well', []))}\n"
+                if summary.get('challenges'):
+                    formatted += f"Challenges: {', '.join(summary.get('challenges', []))}\n"
+                if summary.get('improvements'):
+                    formatted += f"Improvement ideas: {', '.join(summary.get('improvements', []))}\n"
+                if summary.get('team_feedback'):
+                    formatted += f"Team feedback: {', '.join(summary.get('team_feedback', []))}\n"
+                if summary.get('sentiment'):
+                    formatted += f"Sentiment: {summary.get('sentiment')}\n"
+                if summary.get('summary'):
+                    formatted += f"Summary: {summary.get('summary')}\n"
+            else:
+                # Fallback to raw conversation
+                conversation = resp.get('conversation', [])
+                user_messages = [msg['content'] for msg in conversation if msg['role'] == 'user']
+                formatted += f"Feedback: {' '.join(user_messages)}\n"
         
+        print(f"DEBUG: Formatted responses for analysis:\n{formatted[:500]}...")
         return formatted
     
     def _clean_json_string(self, json_str: str) -> str:

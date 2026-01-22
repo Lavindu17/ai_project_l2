@@ -1,4 +1,5 @@
 from flask import Blueprint, request, jsonify, render_template, session
+from app.services.groq_service import GroqService
 from app.services.gemini_service import GeminiService
 from app.services.database_service import DatabaseService
 import uuid
@@ -6,7 +7,8 @@ from datetime import datetime
 
 chat_bp = Blueprint('chat', __name__)
 db = DatabaseService()
-ai = GeminiService()
+chat_ai = GroqService()      # Fast chat with Groq
+summary_ai = GeminiService() # Summaries with Gemini
 
 @chat_bp.route('/api/chat/start-session', methods=['POST'])
 def start_session():
@@ -245,7 +247,7 @@ def send_message():
             context = db.get_sprint_with_context(sprint_id)
         
         # Get AI response with role awareness
-        ai_response = ai.conduct_interview(
+        ai_response = chat_ai.conduct_interview(
             history, 
             user_message,
             member_name=member_name,
@@ -303,7 +305,7 @@ def submit_response():
     
     # Generate structured summary
     member_role = session.get('member_role', 'Team Member')
-    summary_data = ai.generate_conversation_summary(
+    summary_data = summary_ai.generate_conversation_summary(
         conversation_history=conversation,
         member_name=user_name,
         member_role=member_role

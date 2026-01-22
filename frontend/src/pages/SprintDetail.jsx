@@ -8,7 +8,8 @@ import {
     Clock,
     Users,
     BarChart2,
-    Target
+    Target,
+    Sparkles
 } from 'lucide-react';
 import client from '../api/client';
 
@@ -18,6 +19,8 @@ const SprintDetail = () => {
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
+    const [analyzing, setAnalyzing] = useState(false);
+    const [analyzeError, setAnalyzeError] = useState('');
 
     useEffect(() => {
         fetchSprintDetails();
@@ -31,6 +34,20 @@ const SprintDetail = () => {
             setError(err.response?.data?.error || 'Failed to load sprint details');
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleAnalyze = async () => {
+        setAnalyzing(true);
+        setAnalyzeError('');
+        try {
+            await client.post(`/api/sprint/${id}/analyze`);
+            // Refresh data to get updated status
+            await fetchSprintDetails();
+        } catch (err) {
+            setAnalyzeError(err.response?.data?.error || 'Failed to generate report');
+        } finally {
+            setAnalyzing(false);
         }
     };
 
@@ -116,12 +133,44 @@ const SprintDetail = () => {
 
                 {/* Actions */}
                 <div style={styles.actionRow}>
+                    {/* Show Generate Report button when collecting and has submissions */}
+                    {(sprint.status === 'collecting' || sprint.status === 'active') && stats.submitted > 0 && (
+                        <button
+                            onClick={handleAnalyze}
+                            disabled={analyzing}
+                            style={{
+                                ...styles.analyzeButton,
+                                opacity: analyzing ? 0.7 : 1,
+                                cursor: analyzing ? 'not-allowed' : 'pointer'
+                            }}
+                        >
+                            <Sparkles size={16} style={{ marginRight: '6px' }} />
+                            {analyzing ? 'Generating Report...' : 'Generate AI Report'}
+                        </button>
+                    )}
+
+                    {/* Show analyzing status */}
+                    {sprint.status === 'analyzing' && (
+                        <div style={styles.analyzingStatus}>
+                            <div className="loading-spinner" style={{ width: '20px', height: '20px', marginRight: '8px' }}></div>
+                            Analysis in progress...
+                        </div>
+                    )}
+
+                    {/* Show View Report button when analyzed */}
                     {sprint.status === 'analyzed' && (
                         <Link to={`/admin/sprint/${sprint.id}/report`} style={styles.reportButton}>
                             <BarChart2 size={16} style={{ marginRight: '6px' }} /> View Report
                         </Link>
                     )}
                 </div>
+
+                {/* Error message */}
+                {analyzeError && (
+                    <div style={styles.errorMessage}>
+                        ⚠️ {analyzeError}
+                    </div>
+                )}
             </div>
 
             {/* Sprint Goals */}
@@ -360,6 +409,39 @@ const styles = {
         fontWeight: '600',
         textDecoration: 'none',
         boxShadow: '0 4px 6px rgba(72, 187, 120, 0.3)',
+        display: 'flex',
+        alignItems: 'center',
+    },
+    analyzeButton: {
+        padding: '14px 28px',
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        color: 'white',
+        borderRadius: '12px',
+        fontSize: '15px',
+        fontWeight: '600',
+        border: 'none',
+        boxShadow: '0 4px 15px rgba(102, 126, 234, 0.4)',
+        display: 'flex',
+        alignItems: 'center',
+        transition: 'all 0.3s ease',
+    },
+    analyzingStatus: {
+        display: 'flex',
+        alignItems: 'center',
+        padding: '14px 28px',
+        background: '#fffff0',
+        color: '#d69e2e',
+        borderRadius: '12px',
+        fontSize: '15px',
+        fontWeight: '600',
+    },
+    errorMessage: {
+        marginTop: '16px',
+        padding: '12px 20px',
+        background: '#fed7d7',
+        color: '#c53030',
+        borderRadius: '10px',
+        fontSize: '14px',
     },
     sectionCard: {
         maxWidth: '900px',
